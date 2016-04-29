@@ -34,8 +34,8 @@ class CommandInvocation(object):
     def from_cmdline(cmdline: str):
         # shlex.split() makes inputting strings annoying,
         # TODO: find an alternative
-        #words = shlex.split(cmdline)
-        words = cmdline.split()
+        words = shlex.split(cmdline)
+        # words = cmdline.split()
 
         if not words:
             return CommandInvocation(command='')
