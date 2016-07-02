@@ -88,6 +88,7 @@ class Cmd(cmd.Cmd):
 
         Examples:
             "[1,2,3]" -> List[int]
+            "1,2,3" -> List[int]
         """
         if len(annotation.__parameters__) != 1:
             raise TypeError('List may only have one type parameter, got %s'
