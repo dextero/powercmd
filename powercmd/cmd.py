@@ -90,10 +90,10 @@ class Cmd(cmd.Cmd):
             "[1,2,3]" -> List[int]
             "1,2,3" -> List[int]
         """
-        if len(annotation.__parameters__) != 1:
+        if len(annotation.__args__) != 1:
             raise TypeError('List may only have one type parameter, got %s'
                             % (annotation,))
-        internal_type = annotation.__parameters__[0]
+        internal_type = annotation.__args__[0]
         internal_ctor = self.get_constructor(internal_type)
 
         def construct_list(text):
@@ -139,7 +139,7 @@ class Cmd(cmd.Cmd):
         It is used for types like List[Foo] to apply a Foo constructor for each
         list element.
         """
-        if getattr(annotation, '__origin__', None) == List[typing.T]:
+        if getattr(annotation, '__origin__', None) == List:
             return self._get_list_ctor(annotation)
         elif getattr(annotation, '__tuple_params__', None) is not None:
             return self._get_tuple_ctor(annotation)
