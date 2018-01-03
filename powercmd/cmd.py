@@ -197,6 +197,12 @@ class Cmd(cmd.Cmd):
         if hasattr(annotation, 'powercmd_parse'):
             return getattr(annotation, 'powercmd_parse')
 
+        if annotation is bool:
+            # Booleans are actually quite special. In python bool(nonempty seq)
+            # is always True, therefore if used verbatim, '0' would evaluate to
+            # True, which, if you ask me, looks highly counter-intuitive.
+            return lambda value: not value in ('', '0', 'false', 'False')
+
         return {
             bytes: lambda text: bytes(text, 'ascii'),
         }.get(annotation, ensure_callable(annotation))
