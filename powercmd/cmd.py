@@ -44,6 +44,7 @@ import string
 import sys
 import traceback
 import typing
+import enum
 
 from typing import Any, Callable, List, Mapping, Sequence
 from powercmd.extra_typing import OrderedMapping
@@ -213,8 +214,11 @@ class Cmd(cmd.Cmd):
         For given annotation, returns a function that lists possible
         tab-completions for given prefix.
         """
+
         if isinstance(annotation, typing.GenericMeta):
             return self.get_generic_completer(annotation)
+        if issubclass(annotation, enum.Enum):
+            return lambda prefix: [s for s in annotation._member_map_.keys() if s.startswith(prefix)]
         if hasattr(annotation, 'powercmd_complete'):
             return annotation.powercmd_complete
 
