@@ -195,6 +195,9 @@ class Cmd(cmd.Cmd):
 
         if self._is_generic_type(annotation):
             return self.get_generic_constructor(annotation)
+        if issubclass(annotation, enum.Enum):
+            # Enum class allows accessing values by string via [] operator
+            return annotation.__getitem__
         if hasattr(annotation, 'powercmd_parse'):
             return getattr(annotation, 'powercmd_parse')
 
