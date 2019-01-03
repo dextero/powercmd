@@ -46,12 +46,13 @@ import traceback
 import typing
 import enum
 
-from typing import Any, Callable, List, Mapping, Sequence
+from typing import Any, Callable, List, Tuple, Mapping, Sequence
 from powercmd.extra_typing import OrderedMapping
 
 from powercmd.split_list import split_list
 from powercmd.match_string import match_string
 from powercmd.command_invocation import CommandInvocation
+
 
 class Cmd(cmd.Cmd):
     """
@@ -113,7 +114,7 @@ class Cmd(cmd.Cmd):
         Examples:
             "(1,foo)" -> Tuple[int, str]
         """
-        internal_types = getattr(annotation, '__tuple_params__', None)
+        internal_types = getattr(annotation, '__args__', None)
         if internal_types is None:
             raise TypeError('%s is not a tuple type' % (repr(annotation),))
 
@@ -133,16 +134,26 @@ class Cmd(cmd.Cmd):
 
         return construct_tuple
 
+    @staticmethod
+    def _is_generic_list(annotation: Any):
+        # python<3.7 reports List in __origin__, while python>=3.7 reports list
+        return getattr(annotation, '__origin__', None) in (List, list)
+
+    @staticmethod
+    def _is_generic_tuple(annotation: Any):
+        # python<3.7 reports Tuple in __origin__, while python>=3.7 reports tuple
+        return getattr(annotation, '__origin__', None) in (Tuple, tuple)
+
     def get_generic_constructor(self,
-                                annotation: typing.GenericMeta) -> Callable[[str], Any]:
+                                annotation: Any) -> Callable[[str], Any]:
         """
         Returns a function that constructs a generic type from given string.
         It is used for types like List[Foo] to apply a Foo constructor for each
         list element.
         """
-        if getattr(annotation, '__origin__', None) == List:
+        if Cmd._is_generic_list(annotation):
             return self._get_list_ctor(annotation)
-        elif getattr(annotation, '__tuple_params__', None) is not None:
+        elif Cmd._is_generic_tuple(annotation):
             return self._get_tuple_ctor(annotation)
 
         raise NotImplementedError('generic constructor for %s not implemented'
@@ -153,23 +164,22 @@ class Cmd(cmd.Cmd):
         """
         Checks if the type described by ANNOTATION is a generic one.
         """
-        return (isinstance(annotation, typing.GenericMeta) # List[T]
-                or hasattr(annotation, '__tuple_params__')) # Tuple[...]
+        return (Cmd._is_generic_list(annotation)
+                or Cmd._is_generic_tuple(annotation))
 
     def get_generic_completer(self,
-                              annotation: typing.GenericMeta) -> Callable[[str], Any]:
+                              annotation: Any) -> Callable[[str], Any]:
         """
         Returns a function that provides a list of completions given a string
         prefix.  It is used for types like List[Foo] to perform
         argument-specific tab-completion.
         """
-        if annotation.__origin__ == List[typing.T]:
-            if len(annotation.__parameters__) != 1:
+        if Cmd._is_generic_list(annotation):
+            if len(annotation.__args__) != 1:
                 raise TypeError('List may only have one type parameter, got %s'
                                 % (annotation,))
-            internal_type = annotation.__parameters__[0]
+            internal_type = annotation.__args__[0]
             completer = self.get_completer(internal_type)
-
             def complete_list(text):
                 args = list(split_list(text, allow_unmatched=True))
                 return completer(args[-1])
@@ -217,8 +227,7 @@ class Cmd(cmd.Cmd):
         For given annotation, returns a function that lists possible
         tab-completions for given prefix.
         """
-
-        if isinstance(annotation, typing.GenericMeta):
+        if len(annotation.__dict__.get('__args__', [])):
             return self.get_generic_completer(annotation)
         if issubclass(annotation, enum.Enum):
             return lambda prefix: [s for s in annotation._member_map_.keys() if s.startswith(prefix)]
