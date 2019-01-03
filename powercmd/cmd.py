@@ -178,6 +178,7 @@ class Cmd(cmd.Cmd):
                                 % (annotation,))
             internal_type = annotation.__args__[0]
             completer = self.get_completer(internal_type)
+
             def complete_list(text):
                 args = list(split_list(text, allow_unmatched=True))
                 return completer(args[-1])
@@ -186,7 +187,6 @@ class Cmd(cmd.Cmd):
 
         raise NotImplementedError('generic constructor for %s not implemented'
                                   % (annotation,))
-
 
     # pylint: disable=no-self-use
     def get_constructor(self,
@@ -213,7 +213,7 @@ class Cmd(cmd.Cmd):
             # Booleans are actually quite special. In python bool(nonempty seq)
             # is always True, therefore if used verbatim, '0' would evaluate to
             # True, which, if you ask me, looks highly counter-intuitive.
-            return lambda value: not value in ('', '0', 'false', 'False')
+            return lambda value: value not in ('', '0', 'false', 'False')
 
         return {
             bytes: lambda text: bytes(text, 'ascii'),
@@ -371,7 +371,7 @@ class Cmd(cmd.Cmd):
                 try:
                     completer = self.get_completer(possibilities[key].annotation)
                     return list(completer(val))
-                except AttributeError as e:
+                except AttributeError:
                     pass
             except ValueError as e:
                 print(e)
@@ -406,11 +406,12 @@ class Cmd(cmd.Cmd):
             https://bugs.python.org/msg166144
             """
             if not callable(f):
-                raise TypeError('%s is not callable'  % (repr(f),))
+                raise TypeError('%s is not callable' % (repr(f),))
 
             self = getattr(f, '__self__', None)
-            if self is not None and not isinstance(self, types.ModuleType) \
-                                and not isinstance(self, type):
+            if (self is not None
+                    and not isinstance(self, types.ModuleType)
+                    and not isinstance(self, type)):
                 if hasattr(f, '__func__'):
                     return f.__func__
                 return getattr(type(f.__self__), f.__name__)
@@ -450,7 +451,7 @@ class Cmd(cmd.Cmd):
     def _get_handler_params(handler: Callable) -> OrderedMapping[str, inspect.Parameter]:
         """Returns a list of command parameters for given HANDLER."""
         params = inspect.signature(handler).parameters
-        params = collections.OrderedDict(list(params.items())[1:]) # drop 'self'
+        params = collections.OrderedDict(list(params.items())[1:])  # drop 'self'
         return params
 
     def _execute_cmd(self,
