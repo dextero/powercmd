@@ -37,18 +37,17 @@ Example:
 import cmd
 import collections
 import copy
+import enum
 import inspect
-import re
 import shlex
 import string
 import sys
 import traceback
 import typing
-import enum
 
 from typing import Any, Callable, List, Tuple, Mapping, Sequence
-from powercmd.extra_typing import OrderedMapping
 
+from powercmd.extra_typing import OrderedMapping
 from powercmd.split_list import split_list
 from powercmd.match_string import match_string
 from powercmd.command_invocation import CommandInvocation
@@ -60,7 +59,6 @@ class Cmd(cmd.Cmd):
     """
     class SyntaxError(Exception):
         """An error raised if the input cannot be parsed as a valid command."""
-        pass
 
     def __init__(self):
         super(Cmd, self).__init__()
@@ -153,7 +151,7 @@ class Cmd(cmd.Cmd):
         """
         if Cmd._is_generic_list(annotation):
             return self._get_list_ctor(annotation)
-        elif Cmd._is_generic_tuple(annotation):
+        if Cmd._is_generic_tuple(annotation):
             return self._get_tuple_ctor(annotation)
 
         raise NotImplementedError('generic constructor for %s not implemented'
@@ -227,10 +225,10 @@ class Cmd(cmd.Cmd):
         For given annotation, returns a function that lists possible
         tab-completions for given prefix.
         """
-        if len(annotation.__dict__.get('__args__', [])):
+        if annotation.__dict__.get('__args__', []):
             return self.get_generic_completer(annotation)
         if issubclass(annotation, enum.Enum):
-            return lambda prefix: [s for s in annotation._member_map_.keys() if s.startswith(prefix)]
+            return lambda prefix: [val.name for val in list(annotation) if val.name.startswith(prefix)]
         if hasattr(annotation, 'powercmd_complete'):
             return annotation.powercmd_complete
 
@@ -257,6 +255,7 @@ class Cmd(cmd.Cmd):
         print('')
         return self.do_exit()
 
+    # pylint: disable=arguments-differ
     def do_help(self,
                 topic: str = ''):
         """
@@ -472,9 +471,11 @@ class Cmd(cmd.Cmd):
                 return self.emptyline()
 
             return self._execute_cmd(CommandInvocation.from_cmdline(cmdline))
+        # it's a bit too ruthless to terminate on every single broken command
+        # pylint: disable=broad-except
         except Exception as e:
             self._last_exception = sys.exc_info()
-            print(e)
+            print('%s (try "get_error" for details)' % e)
         else:
             self._last_exception = None
 
