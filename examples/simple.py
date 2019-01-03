@@ -1,11 +1,13 @@
 import powercmd
 
+
 class CustomClassWithStringCtor:
     def __init__(self, text):
         self.text = text
 
     def __str__(self):
         return "I'm a %s(%s)!" % (type(self).__name__, self.text)
+
 
 class CustomClassWithPowercmdParse:
     @staticmethod
@@ -18,6 +20,7 @@ class CustomClassWithPowercmdParse:
 
     def __str__(self):
         return "I'm a %s(%s), created by %s!" % (type(self).__name__, self.text, self.caller)
+
 
 class SimpleCmd(powercmd.Cmd):
     # Methods starting with 'do_' are considered command handlers, just like in
@@ -37,6 +40,7 @@ class SimpleCmd(powercmd.Cmd):
                         custom2: CustomClassWithPowercmdParse):
         print(custom)
         print(custom2)
+
 
 if __name__ == '__main__':
     SimpleCmd().cmdloop()
