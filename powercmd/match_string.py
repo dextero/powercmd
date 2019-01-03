@@ -2,7 +2,7 @@ import os
 
 from typing import Callable, List, Sequence, Tuple
 
-class TextMatchStrategy(object):
+class TextMatchStrategy:
     """
     Represents a method of checking if given text matches a pattern.
     """
@@ -45,7 +45,7 @@ class TextMatchStrategy(object):
             common_prefix = os.path.commonprefix([text, word])
             if not common_prefix:
                 return False
-            elif common_prefix == text:
+            if common_prefix == text:
                 return True
 
             for prefix in TextMatchStrategy._prefixes_of(common_prefix):
@@ -130,4 +130,3 @@ def match_string(text, possible, verbose=False):
         TextMatchStrategy.Fuzzy
     ]
     return _match_string(text, list(possible), match_strategies, verbose=verbose)
-
