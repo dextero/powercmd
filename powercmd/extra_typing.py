@@ -1,7 +1,10 @@
-from typing import Mapping, Generic, TypeVar
+from typing import Mapping, TypeVar
 
-T = TypeVar('T')
-S = TypeVar('S')
 
-class OrderedMapping(Mapping[T, S]):
-    pass
+# pylint: disable=R0903
+class OrderedMapping(Mapping[TypeVar('T'), TypeVar('S')]):
+    """
+    Marker class representing a dictionary with predictable element order
+    (insertion order). Intended for use in type annotations, where a
+    collections.OrderedDict with specific element types is expected.
+    """
