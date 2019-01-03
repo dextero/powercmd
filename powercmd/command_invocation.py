@@ -5,7 +5,7 @@ import shlex
 from typing import Sequence
 from .extra_typing import OrderedMapping
 
-class CommandInvocation(object):
+class CommandInvocation:
     def __init__(self,
                  command: str,
                  named_args: OrderedMapping[str, str] = None,
