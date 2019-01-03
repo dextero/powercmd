@@ -1,4 +1,9 @@
+"""
+Utility functions that do not belong anywhere else.
+"""
+
 from typing import List
+
 
 def get_available_instance_names(cls: type,
                                  match_extra_cls: List[type] = None,
@@ -16,6 +21,7 @@ def get_available_instance_names(cls: type,
     valid_classes = [cls] + (match_extra_cls or [])
     return (name + get_suffix(value) for name, value in cls.__dict__.items()
             if any(isinstance(value, c) for c in valid_classes))
+
 
 def match_instance(cls: type,
                    text: str,

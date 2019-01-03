@@ -1,3 +1,7 @@
+"""
+Utility class for parsing command lines.
+"""
+
 import collections
 import re
 import shlex
@@ -5,7 +9,15 @@ import shlex
 from typing import Sequence
 from .extra_typing import OrderedMapping
 
+
 class CommandInvocation:
+    """
+    Partially parsed command invocation.
+
+    The command line is split into base command, named and free arguments for
+    easier handling.
+    """
+
     def __init__(self,
                  command: str,
                  named_args: OrderedMapping[str, str] = None,
@@ -32,6 +44,9 @@ class CommandInvocation:
 
     @staticmethod
     def from_cmdline(cmdline: str):
+        """
+        Parses a command line into a CommandInvocation object.
+        """
         # shlex.split() makes inputting strings annoying,
         # TODO: find an alternative
         words = shlex.split(cmdline)

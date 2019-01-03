@@ -1,6 +1,11 @@
+"""
+Utilities for matching sloppily written commands to existing ones.
+"""
+
 import os
 
 from typing import Callable, List, Sequence, Tuple
+
 
 class TextMatchStrategy:
     """
@@ -84,6 +89,7 @@ class TextMatchStrategy:
                     return True
         return False
 
+
 TextMatchStrategy.Exact = \
         TextMatchStrategy('exact', lambda a, b: a == b)
 TextMatchStrategy.Prefix = \
@@ -92,6 +98,7 @@ TextMatchStrategy.SnakeCase = \
         TextMatchStrategy('snake case', TextMatchStrategy.snake_case_matches)
 TextMatchStrategy.Fuzzy = \
         TextMatchStrategy('fuzzy', TextMatchStrategy.fuzzy_matches)
+
 
 def _match_string(text: str,
                   possible: List[str],
@@ -115,14 +122,24 @@ def _match_string(text: str,
 
     return []
 
+
 def simple_match_string(text, possible):
+    """
+    Returns subset of POSSIBLE commands matching TEXT using simple match
+    strategies (exact or prefix match).
+    """
     match_strategies = [
         TextMatchStrategy.Exact,
         TextMatchStrategy.Prefix
     ]
     return _match_string(text, list(possible), match_strategies, verbose=True)
 
+
 def match_string(text, possible, verbose=False):
+    """
+    Returns subset of POSSIBLE commands matching TEXT using all available
+    match strategies (exact/prefix/snake case/fuzzy match).
+    """
     match_strategies = [
         TextMatchStrategy.Exact,
         TextMatchStrategy.Prefix,

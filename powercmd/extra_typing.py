@@ -1,3 +1,7 @@
+"""
+Utility classes intended for use as generic type hints.
+"""
+
 from typing import Mapping, TypeVar
 
 
