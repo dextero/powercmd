@@ -44,13 +44,12 @@ import string
 import sys
 import traceback
 import typing
+from typing import Any, Callable, List, Mapping, Sequence, Tuple
 
-from typing import Any, Callable, List, Tuple, Mapping, Sequence
-
-from powercmd.extra_typing import OrderedMapping
-from powercmd.split_list import split_list
-from powercmd.match_string import match_string
 from powercmd.command_invocation import CommandInvocation
+from powercmd.extra_typing import OrderedMapping
+from powercmd.match_string import match_string
+from powercmd.split_list import split_list
 
 
 class Cmd(cmd.Cmd):

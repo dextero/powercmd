@@ -1,5 +1,4 @@
 import collections
-
 from typing import Callable
 
 ProxyCall = object()

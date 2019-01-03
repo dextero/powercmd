@@ -1,11 +1,10 @@
-import unittest
 import inspect
-
-from typing import Callable, Mapping, List, Tuple
-
-import test_utils
+import unittest
+from typing import Callable, List, Mapping, Tuple
 
 from powercmd.cmd import Cmd
+
+import test_utils
 
 
 class TestableCmd(Cmd):
