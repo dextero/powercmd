@@ -48,7 +48,7 @@ class CommandInvocation(object):
             if re.match(r'^[a-zA-Z0-9_]+=', word):
                 name, value = word.split('=', maxsplit=1)
                 if name in named_args:
-                    raise Cmd.CancelCmd('multiple values for key: %s' % (name,))
+                    raise ValueError('multiple values for key: %s' % (name,))
                 else:
                     named_args[name] = value
             else:
