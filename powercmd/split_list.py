@@ -16,16 +16,15 @@ def split_list(text: str,
                          % (''.join(_DELIMITERS),))
 
     stack = []
-    escape = False
     start = 0
 
-    for idx, c in enumerate(text):
+    for idx, char in enumerate(text):
         if stack:
-            if stack[-1] == c:
+            if stack[-1] == char:
                 stack.pop()
-        elif c in _DELIMITERS:
-            stack.append(_DELIMITERS[c])
-        elif c == separator:
+        elif char in _DELIMITERS:
+            stack.append(_DELIMITERS[char])
+        elif char == separator:
             yield text[start:idx]
             start = idx + 1
 
