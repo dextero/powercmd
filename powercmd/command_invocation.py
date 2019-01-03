@@ -8,8 +8,8 @@ from .extra_typing import OrderedMapping
 class CommandInvocation(object):
     def __init__(self,
                  command: str,
-                 named_args: OrderedMapping[str, str]=None,
-                 free_args: Sequence[str]=None):
+                 named_args: OrderedMapping[str, str] = None,
+                 free_args: Sequence[str] = None):
         self.command = command
         self.named_args = named_args or collections.OrderedDict()
         self.free_args = free_args or []

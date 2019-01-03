@@ -1,8 +1,8 @@
 from typing import List
 
 def get_available_instance_names(cls: type,
-                                 match_extra_cls: List[type]=None,
-                                 append_paren_to_callables=False):
+                                 match_extra_cls: List[type] = None,
+                                 append_paren_to_callables: bool = False):
     """
     Returns a list of member names that are either CLS or any of the types
     specified in the MATCH_EXTRA_CLS.
@@ -19,7 +19,7 @@ def get_available_instance_names(cls: type,
 
 def match_instance(cls: type,
                    text: str,
-                   match_extra_cls: List[type]=None):
+                   match_extra_cls: List[type] = None):
     """
     Finds instances of one of CLS or any of TARGET_CLS types among attributes
     of the CLS.

@@ -258,7 +258,7 @@ class Cmd(cmd.Cmd):
         return self.do_exit()
 
     def do_help(self,
-                topic: str=''):
+                topic: str = ''):
         """
         Displays a description of given command or lists all available commands.
         """
@@ -435,7 +435,7 @@ class Cmd(cmd.Cmd):
     def _choose_cmd_handler(self,
                             cmds: Mapping[str, Callable],
                             short_cmd: str,
-                            verbose: bool=False) -> Callable:
+                            verbose: bool = False) -> Callable:
         """Returns a command handler that matches SHORT_CMD."""
         matches = match_string(short_cmd, cmds, verbose=verbose)
 
