@@ -72,20 +72,6 @@ class TestCmd(unittest.TestCase):
         with cmd.do_test.expect_call(cls_var=ClassConstructor('cls')):
             cmd.default('test cls')
 
-    def test_construct_fn(self):
-        def fn_constructor(string):
-            return 'fn'
-
-        class TestImpl(TestableCmd):
-            @test_utils.mock
-            def do_test(_self,
-                        fn_var: fn_constructor):
-                pass
-
-        cmd = TestImpl()
-        with cmd.do_test.expect_call(fn_var=fn_constructor('fn')):
-            cmd.default('test fn')
-
     def test_construct_free(self):
         class TestImpl(TestableCmd):
             @test_utils.mock
