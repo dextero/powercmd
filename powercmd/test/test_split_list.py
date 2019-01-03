@@ -2,6 +2,7 @@ import unittest
 
 from powercmd.split_list import split_list
 
+
 class TestSplitList(unittest.TestCase):
     def test_empty(self):
         self.assertEqual([''], list(split_list('')))
@@ -10,7 +11,7 @@ class TestSplitList(unittest.TestCase):
         self.assertEqual(['foo'], list(split_list('foo')))
 
     def test_multiple(self):
-        self.assertEqual(['foo','bar'], list(split_list('foo,bar')))
+        self.assertEqual(['foo', 'bar'], list(split_list('foo,bar')))
 
     def test_parens(self):
         self.assertEqual(['(foo,bar)', '(baz,qux)'],

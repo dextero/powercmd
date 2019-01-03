@@ -2,6 +2,7 @@ import unittest
 
 from powercmd.command_invocation import CommandInvocation
 
+
 class TestCommandInvocation(unittest.TestCase):
     def test_parse(self):
         assertEqual = self.assertEqual
@@ -26,4 +27,3 @@ class TestCommandInvocation(unittest.TestCase):
 
         assertEqual(CommandInvocation(command='foo', named_args={'bar': 'baz'}),
                     CommandInvocation.from_cmdline('foo bar=baz'))
-

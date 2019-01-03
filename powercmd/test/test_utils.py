@@ -5,16 +5,18 @@ from typing import Callable
 ProxyCall = object()
 MockCall = collections.namedtuple('Call', ['args', 'kwargs', 'retval'])
 
+
 class CallWrapper(object):
     def __init__(self,
                  fn: Callable,
-                 static: bool=False):
+                 static: bool = False):
         self.fn = fn
         self.static = static
         self.calls = []
 
     def __enter__(self):
         pass
+
     def __exit__(self, *exc):
         if not exc[0] and len(self.calls) != 0:
             raise AssertionError('%d more calls expected' % len(self.calls))
@@ -63,8 +65,10 @@ class CallWrapper(object):
                 % (len(self.calls),
                    '\n'.join(stringify_call(call) for call in self.calls)))
 
+
 def mock(fn):
     return CallWrapper(fn)
+
 
 def static_mock(fn):
     return CallWrapper(fn, static=True)

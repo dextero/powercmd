@@ -7,6 +7,7 @@ import test_utils
 
 from powercmd.cmd import Cmd
 
+
 class TestableCmd(Cmd):
     def _get_handler_params(cmd: Cmd,
                             handler: Callable) -> Mapping[str, inspect.Parameter]:
@@ -15,6 +16,7 @@ class TestableCmd(Cmd):
             unwrapped_handler = handler.fn
 
         return Cmd._get_handler_params(unwrapped_handler)
+
 
 class TestCmd(unittest.TestCase):
     def test_get_constructor__callable(self):
@@ -146,7 +148,7 @@ class TestCmd(unittest.TestCase):
                 pass
 
         cmd = TestImpl()
-        with cmd.do_test.expect_call(arg=[3,42]):
+        with cmd.do_test.expect_call(arg=[3, 42]):
             cmd.default('test arg=[3,42]')
 
     def test_construct_tuple(self):
@@ -157,7 +159,7 @@ class TestCmd(unittest.TestCase):
                 pass
 
         cmd = TestImpl()
-        with cmd.do_test.expect_call(arg=(float(3),'foo')):
+        with cmd.do_test.expect_call(arg=(float(3), 'foo')):
             cmd.default('test arg=(3,foo)')
 
     def test_completedefault_custom_completer(self):
@@ -183,12 +185,12 @@ class TestCmd(unittest.TestCase):
 
         cmd = TestImpl()
 
-        with TestType.powercmd_complete.expect_no_calls() as _, \
-             cmd.do_test.expect_no_calls() as _:
+        with TestType.powercmd_complete.expect_no_calls(), \
+                cmd.do_test.expect_no_calls():
             self.assertEqual(['arg='],
                              cmd.completedefault(*complete_args('test arg')))
 
-        with TestType.powercmd_complete.expect_call('c') as _, \
-             cmd.do_test.expect_no_calls() as _:
+        with TestType.powercmd_complete.expect_call('c'), \
+                cmd.do_test.expect_no_calls():
             self.assertEqual(['complete'],
                              cmd.completedefault(*complete_args('test arg=c')))
