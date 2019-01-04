@@ -45,6 +45,8 @@ class CmdCompleter(Completer):
                 text_to_complete = current_cmd + ' '
             else:
                 text_to_complete = document.text[:document.cursor_position + end]
+
+            # TODO: would be cool to exclude existing args
             yield from self._get_argument_completions(text_to_complete, start)
 
 
