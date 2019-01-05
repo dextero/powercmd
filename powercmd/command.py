@@ -1,5 +1,6 @@
 import collections
 import inspect
+import textwrap
 from typing import Callable, Mapping
 
 from powercmd.extra_typing import OrderedMapping
@@ -62,6 +63,6 @@ class Command(collections.namedtuple('Command', ['name', 'handler'])):
     @property
     def help(self):
         return ('%s\n\nARGUMENTS: %s %s\n'
-                % (self.description or 'No details available.',
+                % (textwrap.dedent(self.description or 'No details available.').strip(),
                    self.name,
                    ' '.join(str(param) for param in self.parameters)))
