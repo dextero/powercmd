@@ -34,9 +34,9 @@ Example:
             pass
 """
 
-import cmd
 import collections
 import copy
+import functools
 import enum
 import inspect
 import shlex
@@ -46,13 +46,54 @@ import traceback
 import typing
 from typing import Any, Callable, List, Mapping, Sequence, Tuple
 
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.completion.base import CompleteEvent
+from prompt_toolkit.document import Document
+from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
+from prompt_toolkit.patch_stdout import patch_stdout
+
 from powercmd.command_invocation import CommandInvocation
 from powercmd.extra_typing import OrderedMapping
 from powercmd.match_string import match_string
 from powercmd.split_list import split_list
 
 
-class Cmd(cmd.Cmd):
+use_asyncio_event_loop()
+
+
+class CmdCompleter(Completer):
+    def __init__(self, cmd: 'Cmd'):
+        self._cmd = cmd
+
+    def _current_cmdget_cmd_completions(self, incomplete_cmd: str) -> Sequence[Completion]:
+        yield from (Completion(cpl, start_position=0)
+                    for cpl in match_string(incomplete_cmd, self._cmd._get_all_commands()))
+
+    def _get_argument_completions(self, incomplete_arg: str, start_position: int) -> Sequence[Completion]:
+        yield from (Completion(cpl, start_position=start_position)
+                    for cpl in self._cmd.completedefault(None, incomplete_arg, None, None))
+
+    def get_completions(self, document: Document, _complete_event: CompleteEvent):
+        current_cmd = ''
+        if document.text.strip():
+            current_cmd = document.text.strip().split(maxsplit=1)[0]
+
+        start, end = document.find_boundaries_of_current_word()
+        if not current_cmd or document.cursor_position + start == 0:  # TODO: use first non-blank instead
+            yield from self._get_cmd_completions(current_cmd)
+        else:
+            if (start, end) == (0, 0):
+                # pass the command name to get per-command completions
+                text_to_complete = current_cmd + ' '
+            else:
+                text_to_complete = document.text[:document.cursor_position + end]
+
+            # TODO: would be cool to exclude existing args
+            yield from self._get_argument_completions(text_to_complete, start)
+
+
+class Cmd:
     """
     A simple framework for writing typesafe line-oriented command interpreters.
     """
@@ -60,9 +101,13 @@ class Cmd(cmd.Cmd):
         """An error raised if the input cannot be parsed as a valid command."""
 
     def __init__(self):
-        super(Cmd, self).__init__()
-
         self._last_exception = None
+        self._shutdown_requested = False
+        self._session = PromptSession()
+        self._completer = CmdCompleter(self)
+
+        self.event_loop = asyncio.get_event_loop()
+        self.prompt = '> '
 
     # pylint: disable=no-self-use
     def get_command_prefixes(self):
@@ -482,8 +527,17 @@ class Cmd(cmd.Cmd):
     def onecmd(self, cmdline):
         return self.default(cmdline)
 
-    def cmdloop(self):
+    async def run(self):
         try:
-            cmd.Cmd.cmdloop(self)
-        except KeyboardInterrupt:
-            pass
+            while True:
+                with patch_stdout():
+                    cmd = await self._session.prompt(self.prompt, async_=True, completer=self._completer)
+                self.onecmd(cmd)
+        except EOFError:
+            self._shutdown_requested = True
+
+    def cmdloop(self):
+        self._shutdown_requested = False
+
+        self.event_loop.call_soon(functools.partial(self.print_stuff, delay_s=30.0))
+        self.event_loop.run_until_complete(self.run())
