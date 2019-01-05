@@ -2,8 +2,9 @@ import inspect
 import unittest
 from typing import Callable, List, Mapping, Tuple
 
-import test_utils
+from powercmd.test import test_utils
 from powercmd.cmd import Cmd
+from powercmd.command import Command
 
 
 class TestableCmd(Cmd):
@@ -26,22 +27,22 @@ class TestCmd(unittest.TestCase):
 
     def test_get_all_commands(self):
         class TestImpl(Cmd):
-            def do_test(_self):
+            def do_test(self):
                 pass
 
         expected_commands = {
-            'exit': Cmd.do_exit,
-            'EOF': Cmd.do_EOF,
-            'get_error': Cmd.do_get_error,
-            'help': Cmd.do_help,
-            'test': TestImpl.do_test
+            'exit': Command('exit', Cmd.do_exit),
+            'EOF': Command('EOF', Cmd.do_EOF),
+            'get_error': Command('get_error', Cmd.do_get_error),
+            'help': Command('help', Cmd.do_help),
+            'test': Command('test', TestImpl.do_test)
         }
         self.assertEqual(expected_commands, TestImpl()._get_all_commands())
 
     def test_construct_string(self):
         class TestImpl(TestableCmd):
             @test_utils.mock
-            def do_test(_self, str_var: str):
+            def do_test(self, str_var: str):
                 pass
 
         cmd = TestImpl()
@@ -51,7 +52,7 @@ class TestCmd(unittest.TestCase):
     def test_construct_builtin(self):
         class TestImpl(TestableCmd):
             @test_utils.mock
-            def do_test(_self, int_var: int):
+            def do_test(self, int_var: int):
                 pass
 
         cmd = TestImpl()
@@ -64,7 +65,7 @@ class TestCmd(unittest.TestCase):
 
         class TestImpl(TestableCmd):
             @test_utils.mock
-            def do_test(_self,
+            def do_test(self,
                         cls_var: ClassConstructor):
                 pass
 
@@ -75,7 +76,7 @@ class TestCmd(unittest.TestCase):
     def test_construct_free(self):
         class TestImpl(TestableCmd):
             @test_utils.mock
-            def do_test(_self,
+            def do_test(self,
                         first: str,
                         second: int):
                 pass
@@ -88,7 +89,7 @@ class TestCmd(unittest.TestCase):
     def test_construct_named(self):
         class TestImpl(TestableCmd):
             @test_utils.mock
-            def do_test(_self,
+            def do_test(self,
                         first: str,
                         second: int):
                 pass
@@ -104,7 +105,7 @@ class TestCmd(unittest.TestCase):
     def test_construct_mixed_free_named(self):
         class TestImpl(TestableCmd):
             @test_utils.mock
-            def do_test(_self,
+            def do_test(self,
                         first: str,
                         second: int):
                 pass
@@ -119,7 +120,7 @@ class TestCmd(unittest.TestCase):
     def test_completedefault(self):
         class TestImpl(TestableCmd):
             @test_utils.mock
-            def do_test(_self,
+            def do_test(self,
                         arg_first: str,
                         arg_second: int,
                         third: str):
@@ -141,7 +142,7 @@ class TestCmd(unittest.TestCase):
     def test_construct_list(self):
         class TestImpl(TestableCmd):
             @test_utils.mock
-            def do_test(_self,
+            def do_test(self,
                         arg: List[int]):
                 pass
 
@@ -152,7 +153,7 @@ class TestCmd(unittest.TestCase):
     def test_construct_tuple(self):
         class TestImpl(TestableCmd):
             @test_utils.mock
-            def do_test(_self,
+            def do_test(self,
                         arg: Tuple[float, str]):
                 pass
 
@@ -173,7 +174,7 @@ class TestCmd(unittest.TestCase):
 
         class TestImpl(TestableCmd):
             @test_utils.mock
-            def do_test(_self,
+            def do_test(self,
                         arg: TestType):
                 pass
 

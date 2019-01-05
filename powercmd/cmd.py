@@ -58,6 +58,7 @@ from powercmd.command_invocation import CommandInvocation
 from powercmd.extra_typing import OrderedMapping
 from powercmd.match_string import match_string
 from powercmd.split_list import split_list
+from powercmd.command import Command
 
 use_asyncio_event_loop()
 
@@ -309,8 +310,7 @@ class Cmd:
         all_handlers = self._get_all_commands()
 
         try:
-            handler = self._choose_cmd_handler(all_handlers, topic,
-                                               verbose=True)
+            handler = self._choose_cmd(all_handlers, topic, verbose=True)
 
             arg_spec = self._get_handler_params(handler)
             args_with_defaults = list((name, param.default)
@@ -334,7 +334,7 @@ class Cmd:
         Constructs an argument from string VALUE, with the type defined by an
         annotation to the FORMAL_PARAM.
         """
-        ctor = self.get_constructor(formal_param.annotation)
+        ctor = self.get_constructor(formal_param.type)
         try:
             return ctor(value)
         except ValueError as e:
@@ -404,7 +404,7 @@ class Cmd:
 
     def _complete_impl(self,
                        line: str,
-                       possibilities: OrderedMapping[str, inspect.Parameter]) -> List[str]:
+                       params: OrderedMapping[str, inspect.Parameter]) -> List[str]:
         """
         Returns the list of possible tab-completions for given LINE.
         """
@@ -414,14 +414,14 @@ class Cmd:
                 key, val = words[-1].split('=', maxsplit=1)
 
                 try:
-                    completer = self.get_completer(possibilities[key].annotation)
+                    completer = self.get_completer(params[key].type)
                     return list(completer(val))
                 except AttributeError:
                     pass
             except ValueError as e:
                 print(e)
 
-        matches = match_string(words[-1], possibilities)
+        matches = match_string(words[-1], params.keys())
         return [x + '=' for x in matches]
 
     # python3.5 implements completedefault arguments as *ignored
@@ -436,12 +436,11 @@ class Cmd:
         """
         command = shlex.split(line)[0]
         all_commands = self._get_all_commands()
-        handler = self._choose_cmd_handler(all_commands, command)
+        cmd = self._choose_cmd(all_commands, command)
 
-        arg_spec = self._get_handler_params(handler)
-        return self._complete_impl(line, arg_spec)
+        return self._complete_impl(line, cmd.parameters)
 
-    def _get_all_commands(self) -> Mapping[str, Callable]:
+    def _get_all_commands(self) -> Mapping[str, Command]:
         """Returns all defined commands."""
         import types
 
@@ -473,14 +472,15 @@ class Cmd:
             for prefix, substitution in prefixes.items():
                 if name.startswith(prefix):
                     assert substitution + name not in commands
-                    commands[substitution + name[len(prefix):]] = unbind(handler)
+                    cmd_name = substitution + name[len(prefix):]
+                    commands[cmd_name] = Command(name=cmd_name, handler=unbind(handler))
 
         return commands
 
-    def _choose_cmd_handler(self,
-                            cmds: Mapping[str, Callable],
-                            short_cmd: str,
-                            verbose: bool = False) -> Callable:
+    def _choose_cmd(self,
+                    cmds: Mapping[str, Command],
+                    short_cmd: str,
+                    verbose: bool = False) -> Command:
         """Returns a command handler that matches SHORT_CMD."""
         matches = match_string(short_cmd, cmds, verbose=verbose)
 
@@ -492,24 +492,15 @@ class Cmd:
         else:
             return cmds[matches[0]]
 
-    @staticmethod
-    def _get_handler_params(handler: Callable) -> OrderedMapping[str, inspect.Parameter]:
-        """Returns a list of command parameters for given HANDLER."""
-        params = inspect.signature(handler).parameters
-        params = collections.OrderedDict(list(params.items())[1:])  # drop 'self'
-        return params
-
     def _execute_cmd(self,
                      command: CommandInvocation) -> Any:
         """Executes given COMMAND."""
         all_commands = self._get_all_commands()
-        handler = self._choose_cmd_handler(all_commands, command.command,
-                                           verbose=True)
-        formal_params = self._get_handler_params(handler)
-        typed_args = self._construct_args(formal_params,
+        cmd = self._choose_cmd(all_commands, command.command, verbose=True)
+        typed_args = self._construct_args(cmd.parameters,
                                           command.named_args, command.free_args)
 
-        return handler(self, **typed_args)
+        return cmd.handler(self, **typed_args)
 
     def emptyline(self):
         pass
