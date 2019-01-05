@@ -1,4 +1,5 @@
 import collections
+import inspect
 from typing import Callable
 
 ProxyCall = object()
@@ -30,6 +31,10 @@ class CallWrapper(object):
     def returning(self, retval):
         self.calls[0].retval = retval
         return self
+
+    @property
+    def __signature__(self):
+        return inspect.signature(self.fn)
 
     def __call__(self, *args, **kwargs):
         if len(self.calls) == 0:
