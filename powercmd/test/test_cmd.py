@@ -2,9 +2,8 @@ import inspect
 import unittest
 from typing import Callable, List, Mapping, Tuple
 
-from powercmd.cmd import Cmd
-
 import test_utils
+from powercmd.cmd import Cmd
 
 
 class TestableCmd(Cmd):
