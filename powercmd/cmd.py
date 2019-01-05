@@ -37,7 +37,6 @@ Example:
 import asyncio
 import collections
 import copy
-import functools
 import enum
 import inspect
 import shlex
@@ -59,7 +58,6 @@ from powercmd.extra_typing import OrderedMapping
 from powercmd.match_string import match_string
 from powercmd.split_list import split_list
 
-
 use_asyncio_event_loop()
 
 
@@ -67,7 +65,7 @@ class CmdCompleter(Completer):
     def __init__(self, cmd: 'Cmd'):
         self._cmd = cmd
 
-    def _current_cmdget_cmd_completions(self, incomplete_cmd: str) -> Sequence[Completion]:
+    def _get_cmd_completions(self, incomplete_cmd: str) -> Sequence[Completion]:
         yield from (Completion(cpl, start_position=0)
                     for cpl in match_string(incomplete_cmd, self._cmd._get_all_commands()))
 
@@ -511,6 +509,9 @@ class Cmd:
 
         return handler(self, **typed_args)
 
+    def emptyline(self):
+        pass
+
     def default(self, cmdline):
         try:
             if not cmdline:
@@ -539,6 +540,4 @@ class Cmd:
 
     def cmdloop(self):
         self._shutdown_requested = False
-
-        self.event_loop.call_soon(functools.partial(self.print_stuff, delay_s=30.0))
         self.event_loop.run_until_complete(self.run())
