@@ -52,6 +52,7 @@ from prompt_toolkit.completion.base import CompleteEvent
 from prompt_toolkit.document import Document
 from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
 from prompt_toolkit.patch_stdout import patch_stdout
+from prompt_toolkit.styles import Style
 
 from powercmd.command_invocation import CommandInvocation
 from powercmd.extra_typing import OrderedMapping
@@ -107,6 +108,7 @@ class Cmd:
 
         self.event_loop = asyncio.get_event_loop()
         self.prompt = '> '
+        self.prompt_style = Style.from_dict({'': 'bold'})
 
     # pylint: disable=no-self-use
     def get_command_prefixes(self):
@@ -533,7 +535,7 @@ class Cmd:
         try:
             while True:
                 with patch_stdout():
-                    cmd = await self._session.prompt(self.prompt, async_=True, completer=self._completer)
+                    cmd = await self._session.prompt(self.prompt, async_=True, completer=self._completer, style=self.prompt_style)
                 self.onecmd(cmd)
         except EOFError:
             self._shutdown_requested = True
