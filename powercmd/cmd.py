@@ -35,7 +35,6 @@ Example:
 """
 
 import asyncio
-import collections
 import copy
 import enum
 import inspect
@@ -68,14 +67,16 @@ class CmdCompleter(Completer):
         self._cmd = cmd
 
     def _get_cmd_completions(self, incomplete_cmd: str) -> Sequence[Completion]:
-        yield from (Completion(cpl, start_position=0)
+        yield from (Completion(cpl, start_position=-len(incomplete_cmd))
                     for cpl in match_string(incomplete_cmd, self._cmd._get_all_commands()))
 
     def _get_argument_completions(self, incomplete_arg: str, start_position: int) -> Sequence[Completion]:
         yield from (Completion(cpl, start_position=start_position)
                     for cpl in self._cmd.completedefault(None, incomplete_arg, None, None))
 
-    def get_completions(self, document: Document, _complete_event: CompleteEvent):
+    def get_completions(self,
+                        document: Document,
+                        _complete_event: CompleteEvent) -> Sequence[Completion]:
         current_cmd = ''
         if document.text.strip():
             current_cmd = document.text.strip().split(maxsplit=1)[0]
