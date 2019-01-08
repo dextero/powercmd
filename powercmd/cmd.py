@@ -106,8 +106,8 @@ class Cmd:
         self._last_exception = None
         self._shutdown_requested = False
         self._session = PromptSession()
-        self._completer = CmdCompleter(self)
 
+        self.completer = CmdCompleter(self)
         self.event_loop = asyncio.get_event_loop()
         self.prompt = '> '
         self.prompt_style = Style.from_dict({'': 'bold'})
@@ -527,7 +527,7 @@ class Cmd:
         try:
             while True:
                 with patch_stdout():
-                    cmd = await self._session.prompt(self.prompt, async_=True, completer=self._completer, style=self.prompt_style)
+                    cmd = await self._session.prompt(self.prompt, async_=True, completer=self.completer, style=self.prompt_style)
                 self.onecmd(cmd)
         except EOFError:
             self._shutdown_requested = True
