@@ -58,9 +58,66 @@ from powercmd.split_list import split_list
 from powercmd.command import Command
 
 
+def _is_generic_list(annotation: Any):
+    # python<3.7 reports List in __origin__, while python>=3.7 reports list
+    return getattr(annotation, '__origin__', None) in (List, list)
+
+
+def _is_generic_tuple(annotation: Any):
+    # python<3.7 reports Tuple in __origin__, while python>=3.7 reports tuple
+    return getattr(annotation, '__origin__', None) in (Tuple, tuple)
+
+
+def _is_generic_type(annotation: Any) -> bool:
+    """
+    Checks if the type described by ANNOTATION is a generic one.
+    """
+    return (_is_generic_list(annotation)
+            or _is_generic_tuple(annotation))
+
+
 class CmdCompleter(Completer):
     def __init__(self, cmd: 'Cmd'):
         self._cmd = cmd
+
+    def get_generic_completer(self,
+                              annotation: Any) -> Callable[[str], Any]:
+        """
+        Returns a function that provides a list of completions given a string
+        prefix.  It is used for types like List[Foo] to perform
+        argument-specific tab-completion.
+        """
+        if _is_generic_list(annotation):
+            if len(annotation.__args__) != 1:
+                raise TypeError('List may only have one type parameter, got %s'
+                                % (annotation,))
+            internal_type = annotation.__args__[0]
+            completer = self.get_completer(internal_type)
+
+            def complete_list(text):
+                args = list(split_list(text, allow_unmatched=True))
+                return completer(args[-1])
+
+            return complete_list
+
+        raise NotImplementedError('generic constructor for %s not implemented'
+                                  % (annotation,))
+
+    def get_completer(self,
+                      annotation: Any) -> Callable[[str], List[str]]:
+        """
+        For given annotation, returns a function that lists possible
+        tab-completions for given prefix.
+        """
+        if annotation.__dict__.get('__args__', []):
+            return self.get_generic_completer(annotation)
+        if issubclass(annotation, enum.Enum):
+            return lambda prefix: [val.name for val in list(annotation) if val.name.startswith(prefix)]
+        if hasattr(annotation, 'powercmd_complete'):
+            return annotation.powercmd_complete
+
+        return {
+        }.get(annotation, lambda _: [])
 
     def _get_cmd_completions(self, incomplete_cmd: str) -> Sequence[Completion]:
         cmds = self._cmd._get_all_commands()
@@ -68,9 +125,35 @@ class CmdCompleter(Completer):
         for cmd in matching_cmds:
             yield Completion(cmd.name, start_position=-len(incomplete_cmd), display_meta=cmd.short_description)
 
+    def _complete_impl(self,
+                       line: str,
+                       params: OrderedMapping[str, inspect.Parameter]) -> List[str]:
+        """
+        Returns the list of possible tab-completions for given LINE.
+        """
+        words = line.split(' ')
+        if words and '=' in words[-1] and line[-1] not in string.whitespace:
+            try:
+                key, val = words[-1].split('=', maxsplit=1)
+
+                try:
+                    completer = self.get_completer(params[key].type)
+                    return list(completer(val))
+                except AttributeError:
+                    pass
+            except ValueError as e:
+                print(e)
+
+        matches = match_string(words[-1], params.keys())
+        return [x + '=' for x in matches]
+
     def _get_argument_completions(self, incomplete_arg: str, start_position: int) -> Sequence[Completion]:
-        yield from (Completion(cpl, start_position=start_position)
-                    for cpl in self._cmd.completedefault(None, incomplete_arg, None, None))
+        command = shlex.split(incomplete_arg)[0]
+        all_commands = self._cmd._get_all_commands()
+        cmd = self._cmd._choose_cmd(all_commands, command)
+        completions = self._complete_impl(incomplete_arg, cmd.parameters)
+
+        yield from (Completion(cpl, start_position=start_position) for cpl in completions)
 
     def get_completions(self,
                         document: Document,
@@ -175,62 +258,6 @@ class Cmd:
 
         return construct_tuple
 
-    @staticmethod
-    def _is_generic_list(annotation: Any):
-        # python<3.7 reports List in __origin__, while python>=3.7 reports list
-        return getattr(annotation, '__origin__', None) in (List, list)
-
-    @staticmethod
-    def _is_generic_tuple(annotation: Any):
-        # python<3.7 reports Tuple in __origin__, while python>=3.7 reports tuple
-        return getattr(annotation, '__origin__', None) in (Tuple, tuple)
-
-    def get_generic_constructor(self,
-                                annotation: Any) -> Callable[[str], Any]:
-        """
-        Returns a function that constructs a generic type from given string.
-        It is used for types like List[Foo] to apply a Foo constructor for each
-        list element.
-        """
-        if Cmd._is_generic_list(annotation):
-            return self._get_list_ctor(annotation)
-        if Cmd._is_generic_tuple(annotation):
-            return self._get_tuple_ctor(annotation)
-
-        raise NotImplementedError('generic constructor for %s not implemented'
-                                  % (annotation,))
-
-    def _is_generic_type(self,
-                         annotation: Any) -> bool:
-        """
-        Checks if the type described by ANNOTATION is a generic one.
-        """
-        return (Cmd._is_generic_list(annotation)
-                or Cmd._is_generic_tuple(annotation))
-
-    def get_generic_completer(self,
-                              annotation: Any) -> Callable[[str], Any]:
-        """
-        Returns a function that provides a list of completions given a string
-        prefix.  It is used for types like List[Foo] to perform
-        argument-specific tab-completion.
-        """
-        if Cmd._is_generic_list(annotation):
-            if len(annotation.__args__) != 1:
-                raise TypeError('List may only have one type parameter, got %s'
-                                % (annotation,))
-            internal_type = annotation.__args__[0]
-            completer = self.get_completer(internal_type)
-
-            def complete_list(text):
-                args = list(split_list(text, allow_unmatched=True))
-                return completer(args[-1])
-
-            return complete_list
-
-        raise NotImplementedError('generic constructor for %s not implemented'
-                                  % (annotation,))
-
     # pylint: disable=no-self-use
     def get_constructor(self,
                         annotation: Any) -> Callable[[str], Any]:
@@ -244,7 +271,7 @@ class Cmd:
                 raise TypeError('invalid type: ' + repr(arg))
             return arg
 
-        if self._is_generic_type(annotation):
+        if _is_generic_type(annotation):
             return self.get_generic_constructor(annotation)
         if issubclass(annotation, enum.Enum):
             # Enum class allows accessing values by string via [] operator
@@ -262,21 +289,20 @@ class Cmd:
             bytes: lambda text: bytes(text, 'ascii'),
         }.get(annotation, ensure_callable(annotation))
 
-    def get_completer(self,
-                      annotation: Any) -> Callable[[str], List[str]]:
+    def get_generic_constructor(self,
+                                annotation: Any) -> Callable[[str], Any]:
         """
-        For given annotation, returns a function that lists possible
-        tab-completions for given prefix.
+        Returns a function that constructs a generic type from given string.
+        It is used for types like List[Foo] to apply a Foo constructor for each
+        list element.
         """
-        if annotation.__dict__.get('__args__', []):
-            return self.get_generic_completer(annotation)
-        if issubclass(annotation, enum.Enum):
-            return lambda prefix: [val.name for val in list(annotation) if val.name.startswith(prefix)]
-        if hasattr(annotation, 'powercmd_complete'):
-            return annotation.powercmd_complete
+        if _is_generic_list(annotation):
+            return self._get_list_ctor(annotation)
+        if _is_generic_tuple(annotation):
+            return self._get_tuple_ctor(annotation)
 
-        return {
-        }.get(annotation, lambda _: [])
+        raise NotImplementedError('generic constructor for %s not implemented'
+                                  % (annotation,))
 
     def do_get_error(self):
         """
@@ -398,44 +424,6 @@ class Cmd:
                 result[name] = param.default
 
         return result
-
-    def _complete_impl(self,
-                       line: str,
-                       params: OrderedMapping[str, inspect.Parameter]) -> List[str]:
-        """
-        Returns the list of possible tab-completions for given LINE.
-        """
-        words = line.split(' ')
-        if words and '=' in words[-1] and line[-1] not in string.whitespace:
-            try:
-                key, val = words[-1].split('=', maxsplit=1)
-
-                try:
-                    completer = self.get_completer(params[key].type)
-                    return list(completer(val))
-                except AttributeError:
-                    pass
-            except ValueError as e:
-                print(e)
-
-        matches = match_string(words[-1], params.keys())
-        return [x + '=' for x in matches]
-
-    # python3.5 implements completedefault arguments as *ignored
-    # pylint: disable=arguments-differ,unused-argument
-    def completedefault(self,
-                        word_under_cursor: str,
-                        line: str,
-                        word_begidx: int,
-                        word_endidx: int) -> List[str]:
-        """
-        Returns a list of possible tab-completions for currently typed command.
-        """
-        command = shlex.split(line)[0]
-        all_commands = self._get_all_commands()
-        cmd = self._choose_cmd(all_commands, command)
-
-        return self._complete_impl(line, cmd.parameters)
 
     def _get_all_commands(self) -> Mapping[str, Command]:
         """Returns all defined commands."""
