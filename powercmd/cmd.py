@@ -34,7 +34,6 @@ Example:
             pass
 """
 
-import asyncio
 import copy
 import enum
 import inspect
@@ -49,7 +48,6 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.completion.base import CompleteEvent
 from prompt_toolkit.document import Document
-from prompt_toolkit.eventloop.defaults import use_asyncio_event_loop
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 
@@ -58,8 +56,6 @@ from powercmd.extra_typing import OrderedMapping
 from powercmd.match_string import match_string
 from powercmd.split_list import split_list
 from powercmd.command import Command
-
-use_asyncio_event_loop()
 
 
 class CmdCompleter(Completer):
@@ -104,11 +100,9 @@ class Cmd:
 
     def __init__(self):
         self._last_exception = None
-        self._shutdown_requested = False
         self._session = PromptSession()
 
         self.completer = CmdCompleter(self)
-        self.event_loop = asyncio.get_event_loop()
         self.prompt = '> '
         self.prompt_style = Style.from_dict({'': 'bold'})
 
@@ -523,15 +517,11 @@ class Cmd:
     def onecmd(self, cmdline):
         return self.default(cmdline)
 
-    async def run(self):
+    def cmdloop(self):
         try:
             while True:
                 with patch_stdout():
-                    cmd = await self._session.prompt(self.prompt, async_=True, completer=self.completer, style=self.prompt_style)
+                    cmd = self._session.prompt(self.prompt, completer=self.completer, style=self.prompt_style)
                 self.onecmd(cmd)
         except EOFError:
-            self._shutdown_requested = True
-
-    def cmdloop(self):
-        self._shutdown_requested = False
-        self.event_loop.run_until_complete(self.run())
+            pass
