@@ -57,7 +57,7 @@ class Completer(prompt_toolkit.completion.Completer):
         args = list(split_list(incomplete_value, allow_unmatched=True))
         if len(args) > len(inner_types):
             return []
-        return self._complete_value(self, inner_types[len(args) - 1])
+        return self._complete_value(inner_types[len(args) - 1], args[-1])
 
     def _complete_enum(self,
                        enum: type,
