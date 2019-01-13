@@ -87,26 +87,26 @@ class Completer(prompt_toolkit.completion.Completer):
         return completions
 
     def _complete_value(self,
-                        type: type,
+                        type_hint: type,
                         incomplete_value: str) -> Sequence[Completion]:
         """
         Returns a sequence of parameter value completions matching
         INCOMPLETE_VALUE prefix for given CMD.
         """
-        if is_generic_type(type):
-            if is_generic_list(type):
-                return self._complete_generic_list(type.__args__[0], incomplete_value)
-            if is_generic_tuple(type):
-                return self._complete_generic_tuple(type.__args__, incomplete_value)
+        if is_generic_type(type_hint):
+            if is_generic_list(type_hint):
+                return self._complete_generic_list(type_hint.__args__[0], incomplete_value)
+            if is_generic_tuple(type_hint):
+                return self._complete_generic_tuple(type_hint.__args__, incomplete_value)
             raise NotImplementedError('generic constructor for %s not implemented'
-                                      % (type,))
+                                      % (type_hint,))
 
-        if issubclass(type, enum.Enum):
-            return self._complete_enum(type, incomplete_value)
-        if hasattr(type, 'powercmd_complete'):
-            return self._complete_custom(type, incomplete_value)
+        if isinstance(type_hint, type) and issubclass(type_hint, enum.Enum):
+            return self._complete_enum(type_hint, incomplete_value)
+        if hasattr(type_hint, 'powercmd_complete'):
+            return self._complete_custom(type_hint, incomplete_value)
 
-        return [Completion('', display_meta=str(type))]
+        return [Completion('', display_meta=str(type_hint))]
 
     def get_completions(self,
                         document: Document,
