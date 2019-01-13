@@ -32,6 +32,9 @@ class CallWrapper(object):
         self.calls[0].retval = retval
         return self
 
+    def __getattr__(self, attr):
+        return getattr(self.fn, attr)
+
     @property
     def __signature__(self):
         return inspect.signature(self.fn)
