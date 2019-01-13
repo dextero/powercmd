@@ -2,7 +2,7 @@
 Utility functions that do not belong anywhere else.
 """
 
-from typing import List
+from typing import List, Any, Tuple
 
 
 def get_available_instance_names(cls: type,
@@ -39,3 +39,23 @@ def match_instance(cls: type,
         pass
 
     raise ValueError('%s is not a valid instance of %s' % (text, cls.__name__))
+
+
+def is_generic_list(annotation: Any):
+    """Checks if ANNOTATION is List[...]."""
+    # python<3.7 reports List in __origin__, while python>=3.7 reports list
+    return getattr(annotation, '__origin__', None) in (List, list)
+
+
+def is_generic_tuple(annotation: Any):
+    """Checks if ANNOTATION is Tuple[...]."""
+    # python<3.7 reports Tuple in __origin__, while python>=3.7 reports tuple
+    return getattr(annotation, '__origin__', None) in (Tuple, tuple)
+
+
+def is_generic_type(annotation: Any) -> bool:
+    """
+    Checks if the type described by ANNOTATION is a generic one.
+    """
+    return (is_generic_list(annotation)
+            or is_generic_tuple(annotation))

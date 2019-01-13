@@ -34,394 +34,26 @@ Example:
             pass
 """
 
-import copy
-import enum
 import inspect
 import sys
 import traceback
-import typing
-from typing import Any, Callable, List, Mapping, Sequence, Tuple
+from typing import Any
 
 from prompt_toolkit import PromptSession
-from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.completion.base import CompleteEvent
-from prompt_toolkit.document import Document
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 
-from powercmd.command_invocation import CommandInvocation
-from powercmd.extra_typing import OrderedMapping
-from powercmd.match_string import match_string
-from powercmd.split_list import split_list
-from powercmd.command import Command, Parameter
-
-
-def _is_generic_list(annotation: Any):
-    # python<3.7 reports List in __origin__, while python>=3.7 reports list
-    return getattr(annotation, '__origin__', None) in (List, list)
-
-
-def _is_generic_tuple(annotation: Any):
-    # python<3.7 reports Tuple in __origin__, while python>=3.7 reports tuple
-    return getattr(annotation, '__origin__', None) in (Tuple, tuple)
-
-
-def _is_generic_type(annotation: Any) -> bool:
-    """
-    Checks if the type described by ANNOTATION is a generic one.
-    """
-    return (_is_generic_list(annotation)
-            or _is_generic_tuple(annotation))
-
-
-class CommandsDict(dict):
-    """
-    A container for Command objects that allows accessing them by name.
-
-    Functionally, Mapping[str, Command].
-    """
-    def choose(self,
-               short_cmd: str,
-               verbose: bool = False) -> Command:
-        """Returns a command handler that matches SHORT_CMD."""
-        matches = match_string(short_cmd, self, verbose=verbose)
-
-        if not matches:
-            raise Cmd.SyntaxError('no such command: %s' % (short_cmd,))
-        elif len(matches) > 1:
-            raise Cmd.SyntaxError('ambigious command: %s (possible: %s)'
-                                  % (short_cmd, ' '.join(matches)))
-        else:
-            return self[matches[0]]
-
-
-class CmdCompleter(Completer):
-    def __init__(self, commands: CommandsDict):
-        self._cmds = commands
-
-    def _complete_commands(self, incomplete_cmd: str) -> Sequence[Completion]:
-        """
-        Returns a sequence of command completions matching INCOMPLETE_CMD prefix.
-        """
-        matching_cmds = (self._cmds[cmd] for cmd in match_string(incomplete_cmd, self._cmds))
-        yield from (Completion(cmd.name,
-                               start_position=-len(incomplete_cmd),
-                               display_meta=cmd.short_description)
-                    for cmd in matching_cmds)
-
-    def _complete_params(self, cmd: Command, incomplete_param: str) -> Sequence[Completion]:
-        """
-        Returns a sequence of parameter name completions matching INCOMPLETE_PARAM
-        prefix for given CMD.
-        """
-        matching_params = (cmd.parameters[param]
-                           for param in match_string(incomplete_param, cmd.parameters))
-        yield from (Completion(param.name,
-                               start_position=-len(incomplete_param),
-                               display_meta=str(param.type))
-                    for param in matching_params)
-
-    def _complete_generic_list(self,
-                               inner_type: type,
-                               incomplete_value: str):
-        """
-        Returns completions for a list of values of INNER_TYPE.
-        """
-        args = list(split_list(incomplete_value, allow_unmatched=True))
-        return self._complete_value(inner_type, args[-1])
-
-    def _complete_generic_tuple(self,
-                                inner_types: Sequence[type],
-                                incomplete_value: str):
-        """
-        Returns completions for one of tuple values matching one of INNER_TYPES.
-        """
-        args = list(split_list(incomplete_value, allow_unmatched=True))
-        if len(args) > len(inner_types):
-            return []
-        return self._complete_value(self, inner_types[len(args) - 1])
-
-    def _complete_enum(self,
-                       enum: type,
-                       incomplete_value: str):
-        """
-        Returns completions for an class derived from enum.Enum type.
-        """
-        matching_names = match_string(incomplete_value, (val.name for val in list(enum)))
-        matching_vals = (enum[name] for name in matching_names)
-        yield from (Completion(val.name,
-                               start_position=-len(incomplete_value),
-                               display_meta=val.value)
-                    for val in matching_vals)
-
-    def _complete_custom(self,
-                         type: type,
-                         incomplete_value: str):
-        """
-        Returns a list of completion using type.powercmd_complete method.
-        """
-        completions = type.powercmd_complete(incomplete_value)
-        # allow powercmd_complete to return lists of strings for backward compatibility
-        if completions and not isinstance(completions[0], Completion):
-            completions = (Completion(cpl,
-                                      start_position=-len(incomplete_value))
-                           for cpl in completions)
-        return completions
-
-    def _complete_value(self,
-                        type: type,
-                        incomplete_value: str) -> Sequence[Completion]:
-        """
-        Returns a sequence of parameter value completions matching
-        INCOMPLETE_VALUE prefix for given CMD.
-        """
-        if _is_generic_type(type):
-            if _is_generic_list(type):
-                return self._complete_generic_list(type.__args__[0], incomplete_value)
-            if _is_generic_tuple(type):
-                return self._complete_generic_tuple(type.__args__, incomplete_value)
-            raise NotImplementedError('generic constructor for %s not implemented'
-                                      % (type,))
-
-        if issubclass(type, enum.Enum):
-            return self._complete_enum(type, incomplete_value)
-        if hasattr(type, 'powercmd_complete'):
-            return self._complete_custom(type, incomplete_value)
-
-        return [Completion('', display_meta=str(type))]
-
-    def get_completions(self,
-                        document: Document,
-                        _complete_event: CompleteEvent) -> Sequence[Completion]:
-        """
-        Returns a sequence of completions for given command line.
-        """
-        incomplete_cmd = ''
-        if document.text.strip():
-            incomplete_cmd = document.text.strip().split(maxsplit=1)[0]
-
-        start, end = document.find_boundaries_of_current_word(WORD=True)
-        start += document.cursor_position
-        end += document.cursor_position
-        current_word = document.text[start:end]
-
-        current_word_is_command = (document.text[:start].strip() == '')
-        if current_word_is_command:
-            return self._complete_commands(incomplete_cmd)
-
-        try:
-            cmd = self._cmds.choose(incomplete_cmd)
-        except Cmd.SyntaxError:
-            # invalid command
-            return []
-
-        incomplete_param = current_word
-        if '=' not in incomplete_param:
-            return self._complete_params(cmd, incomplete_param)
-
-        param_name, incomplete_value = incomplete_param.split('=', maxsplit=1)
-        param = cmd.parameters.get(param_name)
-        if not param:
-            return []
-
-        # TODO: would be cool to exclude existing params
-        return self._complete_value(param.type, incomplete_value)
-
-
-class CommandInvoker:
-    def __init__(self, commands: CommandsDict):
-        self._cmds = commands
-
-    def _get_list_ctor(self,
-                       annotation: typing.List) -> Callable[[str], typing.List]:
-        """
-        Returns a function that parses a string representation of a list
-        defined by ANNOTATION.
-
-        Examples:
-            "[1,2,3]" -> List[int]
-            "1,2,3" -> List[int]
-        """
-        if len(annotation.__args__) != 1:
-            raise TypeError('List may only have one type parameter, got %s'
-                            % (annotation,))
-        internal_type = annotation.__args__[0]
-        internal_ctor = self.get_constructor(internal_type)
-
-        def construct_list(text):
-            if text[0] == '[' and text[-1] == ']':
-                text = text[1:-1]
-            return [internal_ctor(txt) for txt in split_list(text)]
-
-        return construct_list
-
-    def _get_tuple_ctor(self,
-                        annotation: typing.Tuple) -> Callable[[str], typing.Tuple]:
-        """
-        Returns a function that parses a string representation of a tuple
-        defined by ANNOTATION.
-
-        Examples:
-            "(1,foo)" -> Tuple[int, str]
-        """
-        internal_types = getattr(annotation, '__args__', None)
-        if internal_types is None:
-            raise TypeError('%s is not a tuple type' % (repr(annotation),))
-
-        def construct_tuple(text):
-            if text[0] == '(' and text[-1] == ')':
-                text = text[1:-1]
-
-            sub_txts = list(split_list(text))
-            if len(sub_txts) != len(internal_types):
-                raise TypeError('mismatched lengths: %d strings, %d tuple types' % (len(sub_txts), len(internal_types)))
-
-            tuple_list = []
-            for cls, txt in zip(internal_types, sub_txts):
-                tuple_list.append(self.get_constructor(cls)(txt))
-
-            return tuple(tuple_list)
-
-        return construct_tuple
-
-    # pylint: disable=no-self-use
-    def get_constructor(self,
-                        annotation: Any) -> Callable[[str], Any]:
-        """
-        Returns a callable that parses a string and returns an object of an
-        appropriate type defined by the ANNOTATION.
-        """
-        def ensure_callable(arg):
-            """Raises an exception if the argument is not callable."""
-            if not callable(arg):
-                raise TypeError('invalid type: ' + repr(arg))
-            return arg
-
-        if _is_generic_type(annotation):
-            return self.get_generic_constructor(annotation)
-        if issubclass(annotation, enum.Enum):
-            # Enum class allows accessing values by string via [] operator
-            return annotation.__getitem__
-        if hasattr(annotation, 'powercmd_parse'):
-            return getattr(annotation, 'powercmd_parse')
-
-        if annotation is bool:
-            # Booleans are actually quite special. In python bool(nonempty seq)
-            # is always True, therefore if used verbatim, '0' would evaluate to
-            # True, which, if you ask me, looks highly counter-intuitive.
-            return lambda value: value not in ('', '0', 'false', 'False')
-
-        return {
-            bytes: lambda text: bytes(text, 'ascii'),
-        }.get(annotation, ensure_callable(annotation))
-
-    def get_generic_constructor(self,
-                                annotation: Any) -> Callable[[str], Any]:
-        """
-        Returns a function that constructs a generic type from given string.
-        It is used for types like List[Foo] to apply a Foo constructor for each
-        list element.
-        """
-        if _is_generic_list(annotation):
-            return self._get_list_ctor(annotation)
-        if _is_generic_tuple(annotation):
-            return self._get_tuple_ctor(annotation)
-
-        raise NotImplementedError('generic constructor for %s not implemented'
-                                  % (annotation,))
-
-    def _construct_arg(self,
-                       formal_param: inspect.Parameter,
-                       value: str) -> Any:
-        """
-        Constructs an argument from string VALUE, with the type defined by an
-        annotation to the FORMAL_PARAM.
-        """
-        ctor = self.get_constructor(formal_param.type)
-        try:
-            return ctor(value)
-        except ValueError as e:
-            raise Cmd.SyntaxError(e)
-
-    def _construct_args(self,
-                        formal: OrderedMapping[str, inspect.Parameter],
-                        named_args: Mapping[str, str],
-                        free_args: Sequence[str]):
-        """
-        Parses a list of actual call parameters by calling an appropriate
-        constructor for each of them.
-        """
-        typed_args = {}
-        extra_free = []
-
-        for name, value in named_args.items():
-            if name not in formal:
-                print('unrecognized argument: %s' % (name,))
-                extra_free.append('%s=%s' % (name, value))
-            elif name in typed_args:
-                raise Cmd.SyntaxError('duplicate value for argument: %s' % (name,))
-            else:
-                typed_args[name] = self._construct_arg(formal[name], value)
-
-        typed_args = self._assign_free_args(formal, typed_args,
-                                            free_args + extra_free)
-        typed_args = CommandInvoker._fill_default_args(formal, typed_args)
-        return typed_args
-
-    def _assign_free_args(self,
-                          formal: OrderedMapping[str, inspect.Parameter],
-                          actual: OrderedMapping[str, str],
-                          free: Sequence[str]) -> Mapping[str, str]:
-        """
-        Returns the ACTUAL dict extended by initial FORMAL arguments matched to
-        FREE values.
-        """
-        if len(free) > len(formal):
-            raise Cmd.SyntaxError('too many free arguments: expected at most %d'
-                                  % (len(formal),))
-
-        result = copy.copy(actual)
-        for name, value in zip(formal, free):
-            if name in result:
-                raise Cmd.SyntaxError('cannot assign free argument to %s: '
-                                      'argument already present' % (name,))
-
-            result[name] = self._construct_arg(formal[name], value)
-
-        return result
-
-    @staticmethod
-    def _fill_default_args(formal: Mapping[str, inspect.Parameter],
-                           actual: Mapping[str, str]):
-        """
-        Returns the ACTUAL dict extended by default values of unassigned FORMAL
-        parameters.
-        """
-        result = copy.copy(actual)
-        for name, param in formal.items():
-            if (name not in result
-                    and param.default is not inspect.Parameter.empty):
-                result[name] = param.default
-
-        return result
-
-    def invoke(self,
-               *args,
-               command: CommandInvocation):
-        cmd = self._cmds.choose(command.command, verbose=True)
-        typed_args = self._construct_args(cmd.parameters,
-                                          command.named_args, command.free_args)
-
-        return cmd.handler(*args, **typed_args)
+from powercmd.command_invoker import CommandInvoker
+from powercmd.commands_dict import CommandsDict
+from powercmd.completer import Completer
+from powercmd.exceptions import InvalidInput
+from powercmd.command import Command
 
 
 class Cmd:
     """
     A simple framework for writing typesafe line-oriented command interpreters.
     """
-    class SyntaxError(Exception):
-        """An error raised if the input cannot be parsed as a valid command."""
-
     def __init__(self):
         self._last_exception = None
         self._session = PromptSession()
@@ -486,7 +118,7 @@ class Cmd:
                               if default is not inspect.Parameter.empty
                               else str(arg)
                               for arg, default in args_with_defaults)))
-        except Cmd.SyntaxError:
+        except InvalidInput:
             print('no such command: %s' % (topic,))
             print('available commands: %s' % (' '.join(sorted(cmds)),))
 
@@ -527,12 +159,6 @@ class Cmd:
 
         return commands
 
-    def _execute_cmd(self,
-                     command: CommandInvocation) -> Any:
-        """Executes given COMMAND."""
-        invoker = CommandInvoker(self._get_all_commands())
-        return invoker.invoke(self, command=command)
-
     def emptyline(self):
         pass
 
@@ -541,7 +167,8 @@ class Cmd:
             if not cmdline:
                 return self.emptyline()
 
-            return self._execute_cmd(CommandInvocation.from_cmdline(cmdline))
+            invoker = CommandInvoker(self._get_all_commands())
+            return invoker.invoke(self, cmdline=cmdline)
         # it's a bit too ruthless to terminate on every single broken command
         # pylint: disable=broad-except
         except Exception as e:
@@ -554,7 +181,7 @@ class Cmd:
         return self.default(cmdline)
 
     def cmdloop(self):
-        completer = CmdCompleter(self._get_all_commands())
+        completer = Completer(self._get_all_commands())
         try:
             while True:
                 with patch_stdout():
