@@ -44,6 +44,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 
 from powercmd.command_invoker import CommandInvoker
+from powercmd.command_line import CommandLine
 from powercmd.commands_dict import CommandsDict
 from powercmd.completer import Completer
 from powercmd.exceptions import InvalidInput
@@ -168,7 +169,7 @@ class Cmd:
                 return self.emptyline()
 
             invoker = CommandInvoker(self._get_all_commands())
-            return invoker.invoke(self, cmdline=cmdline)
+            return invoker.invoke(self, cmdline=CommandLine(cmdline))
         # it's a bit too ruthless to terminate on every single broken command
         # pylint: disable=broad-except
         except Exception as e:

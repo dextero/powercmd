@@ -4,7 +4,7 @@ import inspect
 from typing import List, Callable, Tuple, Any, Sequence, Mapping
 
 from powercmd.commands_dict import CommandsDict
-from powercmd.command_invocation import CommandInvocation
+from powercmd.command_line import CommandLine
 from powercmd.exceptions import InvalidInput
 from powercmd.extra_typing import OrderedMapping
 from powercmd.split_list import split_list
@@ -190,10 +190,9 @@ class CommandInvoker:
 
     def invoke(self,
                *args,
-               cmdline: str):
-        command = CommandInvocation.from_cmdline(cmdline)
-        cmd = self._cmds.choose(command.command, verbose=True)
+               cmdline: CommandLine):
+        cmd = self._cmds.choose(cmdline.command, verbose=True)
         typed_args = self._construct_args(cmd.parameters,
-                                          command.named_args, command.free_args)
+                                          cmdline.named_args, cmdline.free_args)
 
         return cmd.handler(*args, **typed_args)
