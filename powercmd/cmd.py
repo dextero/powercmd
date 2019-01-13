@@ -74,16 +74,36 @@ def _is_generic_type(annotation: Any) -> bool:
             or _is_generic_tuple(annotation))
 
 
+class CommandsDict(dict):
+    """
+    A container for Command objects that allows accessing them by name.
+
+    Functionally, Mapping[str, Command].
+    """
+    def choose(self,
+               short_cmd: str,
+               verbose: bool = False) -> Command:
+        """Returns a command handler that matches SHORT_CMD."""
+        matches = match_string(short_cmd, self, verbose=verbose)
+
+        if not matches:
+            raise Cmd.SyntaxError('no such command: %s' % (short_cmd,))
+        elif len(matches) > 1:
+            raise Cmd.SyntaxError('ambigious command: %s (possible: %s)'
+                                  % (short_cmd, ' '.join(matches)))
+        else:
+            return self[matches[0]]
+
+
 class CmdCompleter(Completer):
-    def __init__(self, cmd: 'Cmd'):
-        self._cmd = cmd
+    def __init__(self, commands: CommandsDict):
+        self._cmds = commands
 
     def _complete_commands(self, incomplete_cmd: str) -> Sequence[Completion]:
         """
         Returns a sequence of command completions matching INCOMPLETE_CMD prefix.
         """
-        cmds = self._cmd._get_all_commands()
-        matching_cmds = (cmds[cmd] for cmd in match_string(incomplete_cmd, cmds))
+        matching_cmds = (self._cmds[cmd] for cmd in match_string(incomplete_cmd, self._cmds))
         yield from (Completion(cmd.name,
                                start_position=-len(incomplete_cmd),
                                display_meta=cmd.short_description)
@@ -190,7 +210,7 @@ class CmdCompleter(Completer):
             return self._complete_commands(incomplete_cmd)
 
         try:
-            cmd = self._cmd.choose_cmd(incomplete_cmd)
+            cmd = self._cmds.choose(incomplete_cmd)
         except Cmd.SyntaxError:
             # invalid command
             return []
@@ -219,7 +239,6 @@ class Cmd:
         self._last_exception = None
         self._session = PromptSession()
 
-        self.completer = CmdCompleter(self)
         self.prompt = '> '
         self.prompt_style = Style.from_dict({'': 'bold'})
 
@@ -362,10 +381,10 @@ class Cmd:
         """
         Displays a description of given command or lists all available commands.
         """
-        all_handlers = self._get_all_commands()
+        cmds = self._get_all_commands()
 
         try:
-            handler = self.choose_cmd(all_handlers, topic, verbose=True)
+            handler = cmds.choose(topic, verbose=True)
 
             arg_spec = self._get_handler_params(handler)
             args_with_defaults = list((name, param.default)
@@ -380,7 +399,7 @@ class Cmd:
                               for arg, default in args_with_defaults)))
         except Cmd.SyntaxError:
             print('no such command: %s' % (topic,))
-            print('available commands: %s' % (' '.join(sorted(all_handlers)),))
+            print('available commands: %s' % (' '.join(sorted(cmds)),))
 
     def _construct_arg(self,
                        formal_param: inspect.Parameter,
@@ -457,7 +476,7 @@ class Cmd:
 
         return result
 
-    def _get_all_commands(self) -> Mapping[str, Command]:
+    def _get_all_commands(self) -> CommandsDict:
         """Returns all defined commands."""
         import types
 
@@ -481,7 +500,7 @@ class Cmd:
 
         members = inspect.getmembers(self)
         prefixes = self.get_command_prefixes()
-        commands = {}
+        commands = CommandsDict()
 
         for name, handler in members:
             if not callable(handler):
@@ -494,25 +513,11 @@ class Cmd:
 
         return commands
 
-    def choose_cmd(self,
-                   short_cmd: str,
-                   verbose: bool = False) -> Command:
-        """Returns a command handler that matches SHORT_CMD."""
-        cmds = self._get_all_commands()
-        matches = match_string(short_cmd, cmds, verbose=verbose)
-
-        if not matches:
-            raise Cmd.SyntaxError('no such command: %s' % (short_cmd,))
-        elif len(matches) > 1:
-            raise Cmd.SyntaxError('ambigious command: %s (possible: %s)'
-                                  % (short_cmd, ' '.join(matches)))
-        else:
-            return cmds[matches[0]]
-
     def _execute_cmd(self,
                      command: CommandInvocation) -> Any:
         """Executes given COMMAND."""
-        cmd = self.choose_cmd(command.command, verbose=True)
+        cmds = self._get_all_commands()
+        cmd = cmds.choose(command.command, verbose=True)
         typed_args = self._construct_args(cmd.parameters,
                                           command.named_args, command.free_args)
 
@@ -539,10 +544,11 @@ class Cmd:
         return self.default(cmdline)
 
     def cmdloop(self):
+        completer = CmdCompleter(self._get_all_commands())
         try:
             while True:
                 with patch_stdout():
-                    cmd = self._session.prompt(self.prompt, completer=self.completer, style=self.prompt_style)
+                    cmd = self._session.prompt(self.prompt, completer=completer, style=self.prompt_style)
                 self.onecmd(cmd)
         except EOFError:
             pass
