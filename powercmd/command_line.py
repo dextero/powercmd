@@ -24,10 +24,7 @@ class CommandLine:
         words = shlex.split(cmdline)
         # words = cmdline.split()
 
-        if not words:
-            return CommandLine(command='')
-
-        self.command = words[0]
+        self.command = words[0] if words else ''
         self.named_args = collections.OrderedDict()
         self.free_args = []
 
