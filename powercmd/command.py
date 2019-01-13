@@ -42,8 +42,10 @@ class Command(collections.namedtuple('Command', ['name', 'handler'])):
     def _get_parameters(self) -> Mapping[str, Parameter]:
         try:
             params = self._get_handler_params()
-            return dict((name, Parameter(name=name, type=param.annotation, default=param.default))
-                        for name, param in params.items())
+            return collections.OrderedDict((name, Parameter(name=name,
+                                                            type=param.annotation,
+                                                            default=param.default))
+                                           for name, param in params.items())
         except ValueError as e:
             raise ValueError('Unable to list parameters for handler: %s' % self.name) from e
 
