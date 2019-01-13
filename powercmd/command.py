@@ -1,17 +1,21 @@
+"""
+Utility classes for accessing type hints of function arguments.
+"""
+
 import collections
 import inspect
 import textwrap
-from typing import Mapping
 
 from powercmd.extra_typing import OrderedMapping
 
-NO_DEFAULT = inspect._empty
-
 
 class Parameter(collections.namedtuple('Parameter', ['name', 'type', 'default'])):
+    """
+    Type-annotated function parameter.
+    """
     def __new__(cls, *args, **kwargs):
         param = super().__new__(cls, *args, **kwargs)
-        if param.type == inspect._empty:
+        if param.type == inspect._empty:  # pylint: disable=protected-access
             raise ValueError('Type not specified for paramter %s' % param.name)
         return param
 
@@ -24,9 +28,13 @@ class Parameter(collections.namedtuple('Parameter', ['name', 'type', 'default'])
 
 
 class Command(collections.namedtuple('Command', ['name', 'handler'])):
+    """
+    Command handler: a powercmd.Cmd method with non-self parameters annotated
+    with type hints.
+    """
     def __new__(cls, *args, **kwargs):
         cmd = super().__new__(cls, *args, **kwargs)
-        cmd._get_parameters()
+        cmd.get_parameters()
         return cmd
 
     def _get_handler_params(self) -> OrderedMapping[str, inspect.Parameter]:
@@ -38,31 +46,37 @@ class Command(collections.namedtuple('Command', ['name', 'handler'])):
         params = collections.OrderedDict(params)  # drop 'self'
         return params
 
-    def _get_parameters(self) -> Mapping[str, Parameter]:
+    def get_parameters(self) -> OrderedMapping[str, Parameter]:
+        """Returns an OrderedDict of command parameters."""
         try:
             params = self._get_handler_params()
             return collections.OrderedDict((name, Parameter(name=name,
                                                             type=param.annotation,
                                                             default=param.default))
                                            for name, param in params.items())
-        except ValueError as e:
-            raise ValueError('Unable to list parameters for handler: %s' % self.name) from e
+        except ValueError as exc:
+            raise ValueError('Unable to list parameters for handler: %s' % self.name) from exc
 
     @property
-    def parameters(self) -> Mapping[str, Parameter]:
-        return self._get_parameters()
+    def parameters(self) -> OrderedMapping[str, Parameter]:
+        """Returns an OrderedDict of command parameters."""
+        return self.get_parameters()
 
     @property
     def description(self) -> str:
+        """Returns command handler docstring."""
         return self.handler.__doc__
 
     @property
     def short_description(self) -> str:
+        """Returns the first line of command handler docstring."""
         if self.description is not None:
             return self.description.strip().split('\n', maxsplit=1)[0]
+        return None
 
     @property
     def help(self):
+        """Returns a help message for this command handler."""
         return ('%s\n\nARGUMENTS: %s %s\n'
                 % (textwrap.dedent(self.description or 'No details available.').strip(),
                    self.name,

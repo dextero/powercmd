@@ -1,6 +1,7 @@
+import inspect
 import unittest
 
-from powercmd.command import NO_DEFAULT, Command, Parameter
+from powercmd.command import Command, Parameter
 
 
 class CommandTest(unittest.TestCase):
@@ -10,7 +11,7 @@ class CommandTest(unittest.TestCase):
 
         cmd = Command(name='func', handler=func)
         self.assertEqual(cmd.parameters,
-                         {'a': Parameter(name='a', type=int, default=NO_DEFAULT),
+                         {'a': Parameter(name='a', type=int, default=inspect._empty),
                           'b': Parameter(name='b', type=str, default='x')})
 
     def test_short_description(self):

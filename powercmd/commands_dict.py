@@ -1,3 +1,9 @@
+"""
+Command name -> Command object dictionary able to choose most appropriate
+command by partial name.
+"""
+
+
 from powercmd.command import Command
 from powercmd.exceptions import InvalidInput
 from powercmd.match_string import match_string

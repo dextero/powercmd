@@ -1,3 +1,7 @@
+"""
+Utilities for constructing command arguments.
+"""
+
 import copy
 import enum
 import inspect
@@ -12,6 +16,10 @@ from powercmd.utils import is_generic_list, is_generic_tuple, is_generic_type
 
 
 class CommandInvoker:
+    """
+    Constructs command handler arguments and invokes appropriate handler with
+    constructed argumnds.
+    """
     def __init__(self, commands: CommandsDict):
         self._cmds = commands
 
@@ -123,8 +131,8 @@ class CommandInvoker:
         ctor = self.get_constructor(formal_param.type)
         try:
             return ctor(value)
-        except ValueError as e:
-            raise InvalidInput(e)
+        except ValueError as exc:
+            raise InvalidInput(exc)
 
     def _construct_args(self,
                         formal: OrderedMapping[str, inspect.Parameter],
@@ -191,6 +199,10 @@ class CommandInvoker:
     def invoke(self,
                *args,
                cmdline: CommandLine):
+        """
+        Parses CMDLINE and invokes appropriate command handler. Anyy additional
+        ARGS are passed to the handler.
+        """
         cmd = self._cmds.choose(cmdline.command, verbose=True)
         typed_args = self._construct_args(cmd.parameters,
                                           cmdline.named_args, cmdline.free_args)

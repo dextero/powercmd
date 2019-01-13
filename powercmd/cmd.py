@@ -104,20 +104,13 @@ class Cmd:
         """
         cmds = self._get_all_commands()
 
+        if not topic:
+            print('available commands: %s' % (' '.join(sorted(cmds)),))
+            return
+
         try:
             handler = cmds.choose(topic, verbose=True)
-
-            arg_spec = self._get_handler_params(handler)
-            args_with_defaults = list((name, param.default)
-                                      for name, param in arg_spec.items())
-
-            print('%s\n\nARGUMENTS: %s %s\n'
-                  % (handler.__doc__ or 'No details available.',
-                     topic,
-                     ' '.join('%s=%s' % (arg, repr(default))
-                              if default is not inspect.Parameter.empty
-                              else str(arg)
-                              for arg, default in args_with_defaults)))
+            print(handler.help)
         except InvalidInput:
             print('no such command: %s' % (topic,))
             print('available commands: %s' % (' '.join(sorted(cmds)),))
@@ -129,6 +122,7 @@ class Cmd:
         def unbind(f):
             """
             Returns the base function if the argument is a bound one.
+
             https://bugs.python.org/msg166144
             """
             if not callable(f):
@@ -160,9 +154,14 @@ class Cmd:
         return commands
 
     def emptyline(self):
-        pass
+        """
+        Method called whenever the user enters an empty line.
+        """
 
     def default(self, cmdline):
+        """
+        Interprets CMDLINE as a command and executes it.
+        """
         try:
             if not cmdline:
                 return self.emptyline()
@@ -178,9 +177,16 @@ class Cmd:
             self._last_exception = None
 
     def onecmd(self, cmdline):
+        """
+        Interprets CMDLINE as a command and executes it.
+        """
         return self.default(cmdline)
 
     def cmdloop(self):
+        """
+        Interprets commands read from stdin until a shutdown is requested or
+        EOF encountered.
+        """
         completer = Completer(self._get_all_commands())
         try:
             while True:

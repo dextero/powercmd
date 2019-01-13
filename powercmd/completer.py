@@ -1,3 +1,7 @@
+"""
+Command line completion box hints implementation.
+"""
+
 import enum
 from typing import Sequence
 
@@ -14,6 +18,10 @@ from powercmd.utils import is_generic_list, is_generic_tuple, is_generic_type
 
 
 class Completer(prompt_toolkit.completion.Completer):
+    """
+    Auto-completion suggestion provider.
+    """
+
     def __init__(self, commands: CommandsDict):
         self._cmds = commands
 
@@ -27,7 +35,8 @@ class Completer(prompt_toolkit.completion.Completer):
                                display_meta=cmd.short_description)
                     for cmd in matching_cmds)
 
-    def _complete_params(self, cmd: Command, incomplete_param: str) -> Sequence[Completion]:
+    @staticmethod
+    def _complete_params(cmd: Command, incomplete_param: str) -> Sequence[Completion]:
         """
         Returns a sequence of parameter name completions matching INCOMPLETE_PARAM
         prefix for given CMD.
@@ -59,26 +68,26 @@ class Completer(prompt_toolkit.completion.Completer):
             return []
         return self._complete_value(inner_types[len(args) - 1], args[-1])
 
-    def _complete_enum(self,
-                       enum: type,
+    @staticmethod
+    def _complete_enum(enum_hint: type,
                        incomplete_value: str):
         """
         Returns completions for an class derived from enum.Enum type.
         """
-        matching_names = match_string(incomplete_value, (val.name for val in list(enum)))
-        matching_vals = (enum[name] for name in matching_names)
+        matching_names = match_string(incomplete_value, (val.name for val in list(enum_hint)))
+        matching_vals = (enum_hint[name] for name in matching_names)
         yield from (Completion(val.name,
                                start_position=-len(incomplete_value),
                                display_meta=str(val.value))
                     for val in matching_vals)
 
-    def _complete_custom(self,
-                         type: type,
+    @staticmethod
+    def _complete_custom(type_hint: type,
                          incomplete_value: str):
         """
         Returns a list of completion using type.powercmd_complete method.
         """
-        completions = type.powercmd_complete(incomplete_value)
+        completions = type_hint.powercmd_complete(incomplete_value)
         # allow powercmd_complete to return lists of strings for backward compatibility
         if completions and not isinstance(completions[0], Completion):
             completions = (Completion(cpl,
