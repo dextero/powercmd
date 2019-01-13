@@ -37,8 +37,6 @@ Example:
 import copy
 import enum
 import inspect
-import shlex
-import string
 import sys
 import traceback
 import typing
@@ -55,7 +53,7 @@ from powercmd.command_invocation import CommandInvocation
 from powercmd.extra_typing import OrderedMapping
 from powercmd.match_string import match_string
 from powercmd.split_list import split_list
-from powercmd.command import Command
+from powercmd.command import Command, Parameter
 
 
 def _is_generic_list(annotation: Any):
@@ -80,100 +78,134 @@ class CmdCompleter(Completer):
     def __init__(self, cmd: 'Cmd'):
         self._cmd = cmd
 
-    def get_generic_completer(self,
-                              annotation: Any) -> Callable[[str], Any]:
+    def _complete_commands(self, incomplete_cmd: str) -> Sequence[Completion]:
         """
-        Returns a function that provides a list of completions given a string
-        prefix.  It is used for types like List[Foo] to perform
-        argument-specific tab-completion.
+        Returns a sequence of command completions matching INCOMPLETE_CMD prefix.
         """
-        if _is_generic_list(annotation):
-            if len(annotation.__args__) != 1:
-                raise TypeError('List may only have one type parameter, got %s'
-                                % (annotation,))
-            internal_type = annotation.__args__[0]
-            completer = self.get_completer(internal_type)
-
-            def complete_list(text):
-                args = list(split_list(text, allow_unmatched=True))
-                return completer(args[-1])
-
-            return complete_list
-
-        raise NotImplementedError('generic constructor for %s not implemented'
-                                  % (annotation,))
-
-    def get_completer(self,
-                      annotation: Any) -> Callable[[str], List[str]]:
-        """
-        For given annotation, returns a function that lists possible
-        tab-completions for given prefix.
-        """
-        if annotation.__dict__.get('__args__', []):
-            return self.get_generic_completer(annotation)
-        if issubclass(annotation, enum.Enum):
-            return lambda prefix: [val.name for val in list(annotation) if val.name.startswith(prefix)]
-        if hasattr(annotation, 'powercmd_complete'):
-            return annotation.powercmd_complete
-
-        return {
-        }.get(annotation, lambda _: [])
-
-    def _get_cmd_completions(self, incomplete_cmd: str) -> Sequence[Completion]:
         cmds = self._cmd._get_all_commands()
         matching_cmds = (cmds[cmd] for cmd in match_string(incomplete_cmd, cmds))
-        for cmd in matching_cmds:
-            yield Completion(cmd.name, start_position=-len(incomplete_cmd), display_meta=cmd.short_description)
+        yield from (Completion(cmd.name,
+                               start_position=-len(incomplete_cmd),
+                               display_meta=cmd.short_description)
+                    for cmd in matching_cmds)
 
-    def _complete_impl(self,
-                       line: str,
-                       params: OrderedMapping[str, inspect.Parameter]) -> List[str]:
+    def _complete_params(self, cmd: Command, incomplete_param: str) -> Sequence[Completion]:
         """
-        Returns the list of possible tab-completions for given LINE.
+        Returns a sequence of parameter name completions matching INCOMPLETE_PARAM
+        prefix for given CMD.
         """
-        words = line.split(' ')
-        if words and '=' in words[-1] and line[-1] not in string.whitespace:
-            try:
-                key, val = words[-1].split('=', maxsplit=1)
+        matching_params = (cmd.parameters[param]
+                           for param in match_string(incomplete_param, cmd.parameters))
+        yield from (Completion(param.name,
+                               start_position=-len(incomplete_param),
+                               display_meta=str(param.type))
+                    for param in matching_params)
 
-                try:
-                    completer = self.get_completer(params[key].type)
-                    return list(completer(val))
-                except AttributeError:
-                    pass
-            except ValueError as e:
-                print(e)
+    def _complete_generic_list(self,
+                               inner_type: type,
+                               incomplete_value: str):
+        """
+        Returns completions for a list of values of INNER_TYPE.
+        """
+        args = list(split_list(incomplete_value, allow_unmatched=True))
+        return self._complete_value(inner_type, args[-1])
 
-        matches = match_string(words[-1], params.keys())
-        return [x + '=' for x in matches]
+    def _complete_generic_tuple(self,
+                                inner_types: Sequence[type],
+                                incomplete_value: str):
+        """
+        Returns completions for one of tuple values matching one of INNER_TYPES.
+        """
+        args = list(split_list(incomplete_value, allow_unmatched=True))
+        if len(args) > len(inner_types):
+            return []
+        return self._complete_value(self, inner_types[len(args) - 1])
 
-    def _get_argument_completions(self, incomplete_arg: str, start_position: int) -> Sequence[Completion]:
-        command = shlex.split(incomplete_arg)[0]
-        all_commands = self._cmd._get_all_commands()
-        cmd = self._cmd._choose_cmd(all_commands, command)
-        completions = self._complete_impl(incomplete_arg, cmd.parameters)
+    def _complete_enum(self,
+                       enum: type,
+                       incomplete_value: str):
+        """
+        Returns completions for an class derived from enum.Enum type.
+        """
+        matching_names = match_string(incomplete_value, (val.name for val in list(enum)))
+        matching_vals = (enum[name] for name in matching_names)
+        yield from (Completion(val.name,
+                               start_position=-len(incomplete_value),
+                               display_meta=val.value)
+                    for val in matching_vals)
 
-        yield from (Completion(cpl, start_position=start_position) for cpl in completions)
+    def _complete_custom(self,
+                         type: type,
+                         incomplete_value: str):
+        """
+        Returns a list of completion using type.powercmd_complete method.
+        """
+        completions = type.powercmd_complete(incomplete_value)
+        # allow powercmd_complete to return lists of strings for backward compatibility
+        if completions and not isinstance(completions[0], Completion):
+            completions = (Completion(cpl,
+                                      start_position=-len(incomplete_value))
+                           for cpl in completions)
+        return completions
+
+    def _complete_value(self,
+                        type: type,
+                        incomplete_value: str) -> Sequence[Completion]:
+        """
+        Returns a sequence of parameter value completions matching
+        INCOMPLETE_VALUE prefix for given CMD.
+        """
+        if _is_generic_type(type):
+            if _is_generic_list(type):
+                return self._complete_generic_list(type.__args__[0], incomplete_value)
+            if _is_generic_tuple(type):
+                return self._complete_generic_tuple(type.__args__, incomplete_value)
+            raise NotImplementedError('generic constructor for %s not implemented'
+                                      % (type,))
+
+        if issubclass(type, enum.Enum):
+            return self._complete_enum(type, incomplete_value)
+        if hasattr(type, 'powercmd_complete'):
+            return self._complete_custom(type, incomplete_value)
+
+        return [Completion('', display_meta=str(type))]
 
     def get_completions(self,
                         document: Document,
                         _complete_event: CompleteEvent) -> Sequence[Completion]:
-        current_cmd = ''
+        """
+        Returns a sequence of completions for given command line.
+        """
+        incomplete_cmd = ''
         if document.text.strip():
-            current_cmd = document.text.strip().split(maxsplit=1)[0]
+            incomplete_cmd = document.text.strip().split(maxsplit=1)[0]
 
-        start, end = document.find_boundaries_of_current_word()
-        if not current_cmd or document.cursor_position + start == 0:  # TODO: use first non-blank instead
-            yield from self._get_cmd_completions(current_cmd)
-        else:
-            if (start, end) == (0, 0):
-                # pass the command name to get per-command completions
-                text_to_complete = current_cmd + ' '
-            else:
-                text_to_complete = document.text[:document.cursor_position + end]
+        start, end = document.find_boundaries_of_current_word(WORD=True)
+        start += document.cursor_position
+        end += document.cursor_position
+        current_word = document.text[start:end]
 
-            # TODO: would be cool to exclude existing args
-            yield from self._get_argument_completions(text_to_complete, start)
+        current_word_is_command = (document.text[:start].strip() == '')
+        if current_word_is_command:
+            return self._complete_commands(incomplete_cmd)
+
+        try:
+            cmd = self._cmd.choose_cmd(incomplete_cmd)
+        except Cmd.SyntaxError:
+            # invalid command
+            return []
+
+        incomplete_param = current_word
+        if '=' not in incomplete_param:
+            return self._complete_params(cmd, incomplete_param)
+
+        param_name, incomplete_value = incomplete_param.split('=', maxsplit=1)
+        param = cmd.parameters.get(param_name)
+        if not param:
+            return []
+
+        # TODO: would be cool to exclude existing params
+        return self._complete_value(param.type, incomplete_value)
 
 
 class Cmd:
@@ -333,7 +365,7 @@ class Cmd:
         all_handlers = self._get_all_commands()
 
         try:
-            handler = self._choose_cmd(all_handlers, topic, verbose=True)
+            handler = self.choose_cmd(all_handlers, topic, verbose=True)
 
             arg_spec = self._get_handler_params(handler)
             args_with_defaults = list((name, param.default)
@@ -462,11 +494,11 @@ class Cmd:
 
         return commands
 
-    def _choose_cmd(self,
-                    cmds: Mapping[str, Command],
-                    short_cmd: str,
-                    verbose: bool = False) -> Command:
+    def choose_cmd(self,
+                   short_cmd: str,
+                   verbose: bool = False) -> Command:
         """Returns a command handler that matches SHORT_CMD."""
+        cmds = self._get_all_commands()
         matches = match_string(short_cmd, cmds, verbose=verbose)
 
         if not matches:
@@ -480,8 +512,7 @@ class Cmd:
     def _execute_cmd(self,
                      command: CommandInvocation) -> Any:
         """Executes given COMMAND."""
-        all_commands = self._get_all_commands()
-        cmd = self._choose_cmd(all_commands, command.command, verbose=True)
+        cmd = self.choose_cmd(command.command, verbose=True)
         typed_args = self._construct_args(cmd.parameters,
                                           command.named_args, command.free_args)
 
