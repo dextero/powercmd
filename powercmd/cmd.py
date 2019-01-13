@@ -228,34 +228,9 @@ class CmdCompleter(Completer):
         return self._complete_value(param.type, incomplete_value)
 
 
-class Cmd:
-    """
-    A simple framework for writing typesafe line-oriented command interpreters.
-    """
-    class SyntaxError(Exception):
-        """An error raised if the input cannot be parsed as a valid command."""
-
-    def __init__(self):
-        self._last_exception = None
-        self._session = PromptSession()
-
-        self.prompt = '> '
-        self.prompt_style = Style.from_dict({'': 'bold'})
-
-    # pylint: disable=no-self-use
-    def get_command_prefixes(self):
-        """
-        Returns a mapping {method_command_prefix -> input_string_prefix}.
-        input_string_prefix is a prefix of a command typed in the command line,
-        method_command_prefix is the prefix for a matching command.
-
-        If this function returns {'do_': ''}, then all methods whose names start
-        with 'do_' will be available as commands with the same names, i.e.
-        typing 'foo' will execute 'do_foo'.
-        If it returned {'do_', '!'}, then one has to type '!foo' in order to
-        execute 'do_foo'.
-        """
-        return {'do_': ''}
+class CommandInvoker:
+    def __init__(self, commands: CommandsDict):
+        self._cmds = commands
 
     def _get_list_ctor(self,
                        annotation: typing.List) -> Callable[[str], typing.List]:
@@ -355,6 +330,120 @@ class Cmd:
         raise NotImplementedError('generic constructor for %s not implemented'
                                   % (annotation,))
 
+    def _construct_arg(self,
+                       formal_param: inspect.Parameter,
+                       value: str) -> Any:
+        """
+        Constructs an argument from string VALUE, with the type defined by an
+        annotation to the FORMAL_PARAM.
+        """
+        ctor = self.get_constructor(formal_param.type)
+        try:
+            return ctor(value)
+        except ValueError as e:
+            raise Cmd.SyntaxError(e)
+
+    def _construct_args(self,
+                        formal: OrderedMapping[str, inspect.Parameter],
+                        named_args: Mapping[str, str],
+                        free_args: Sequence[str]):
+        """
+        Parses a list of actual call parameters by calling an appropriate
+        constructor for each of them.
+        """
+        typed_args = {}
+        extra_free = []
+
+        for name, value in named_args.items():
+            if name not in formal:
+                print('unrecognized argument: %s' % (name,))
+                extra_free.append('%s=%s' % (name, value))
+            elif name in typed_args:
+                raise Cmd.SyntaxError('duplicate value for argument: %s' % (name,))
+            else:
+                typed_args[name] = self._construct_arg(formal[name], value)
+
+        typed_args = self._assign_free_args(formal, typed_args,
+                                            free_args + extra_free)
+        typed_args = CommandInvoker._fill_default_args(formal, typed_args)
+        return typed_args
+
+    def _assign_free_args(self,
+                          formal: OrderedMapping[str, inspect.Parameter],
+                          actual: OrderedMapping[str, str],
+                          free: Sequence[str]) -> Mapping[str, str]:
+        """
+        Returns the ACTUAL dict extended by initial FORMAL arguments matched to
+        FREE values.
+        """
+        if len(free) > len(formal):
+            raise Cmd.SyntaxError('too many free arguments: expected at most %d'
+                                  % (len(formal),))
+
+        result = copy.copy(actual)
+        for name, value in zip(formal, free):
+            if name in result:
+                raise Cmd.SyntaxError('cannot assign free argument to %s: '
+                                      'argument already present' % (name,))
+
+            result[name] = self._construct_arg(formal[name], value)
+
+        return result
+
+    @staticmethod
+    def _fill_default_args(formal: Mapping[str, inspect.Parameter],
+                           actual: Mapping[str, str]):
+        """
+        Returns the ACTUAL dict extended by default values of unassigned FORMAL
+        parameters.
+        """
+        result = copy.copy(actual)
+        for name, param in formal.items():
+            if (name not in result
+                    and param.default is not inspect.Parameter.empty):
+                result[name] = param.default
+
+        return result
+
+    def invoke(self,
+               *args,
+               command: CommandInvocation):
+        cmd = self._cmds.choose(command.command, verbose=True)
+        typed_args = self._construct_args(cmd.parameters,
+                                          command.named_args, command.free_args)
+
+        return cmd.handler(*args, **typed_args)
+
+
+class Cmd:
+    """
+    A simple framework for writing typesafe line-oriented command interpreters.
+    """
+    class SyntaxError(Exception):
+        """An error raised if the input cannot be parsed as a valid command."""
+
+    def __init__(self):
+        self._last_exception = None
+        self._session = PromptSession()
+
+        self.prompt = '> '
+        self.prompt_style = Style.from_dict({'': 'bold'})
+
+    # pylint: disable=no-self-use
+    def get_command_prefixes(self):
+        """
+        Returns a mapping {method_command_prefix -> input_string_prefix}.
+        input_string_prefix is a prefix of a command typed in the command line,
+        method_command_prefix is the prefix for a matching command.
+
+        If this function returns {'do_': ''}, then all methods whose names start
+        with 'do_' will be available as commands with the same names, i.e.
+        typing 'foo' will execute 'do_foo'.
+        If it returned {'do_', '!'}, then one has to type '!foo' in order to
+        execute 'do_foo'.
+        """
+        return {'do_': ''}
+
     def do_get_error(self):
         """
         Displays an exception thrown by last command.
@@ -401,81 +490,6 @@ class Cmd:
             print('no such command: %s' % (topic,))
             print('available commands: %s' % (' '.join(sorted(cmds)),))
 
-    def _construct_arg(self,
-                       formal_param: inspect.Parameter,
-                       value: str) -> Any:
-        """
-        Constructs an argument from string VALUE, with the type defined by an
-        annotation to the FORMAL_PARAM.
-        """
-        ctor = self.get_constructor(formal_param.type)
-        try:
-            return ctor(value)
-        except ValueError as e:
-            raise Cmd.SyntaxError(e)
-
-    def _construct_args(self,
-                        formal: OrderedMapping[str, inspect.Parameter],
-                        named_args: Mapping[str, str],
-                        free_args: Sequence[str]):
-        """
-        Parses a list of actual call parameters by calling an appropriate
-        constructor for each of them.
-        """
-        typed_args = {}
-        extra_free = []
-
-        for name, value in named_args.items():
-            if name not in formal:
-                print('unrecognized argument: %s' % (name,))
-                extra_free.append('%s=%s' % (name, value))
-            elif name in typed_args:
-                raise Cmd.SyntaxError('duplicate value for argument: %s' % (name,))
-            else:
-                typed_args[name] = self._construct_arg(formal[name], value)
-
-        typed_args = self._assign_free_args(formal, typed_args,
-                                            free_args + extra_free)
-        typed_args = Cmd._fill_default_args(formal, typed_args)
-        return typed_args
-
-    def _assign_free_args(self,
-                          formal: OrderedMapping[str, inspect.Parameter],
-                          actual: OrderedMapping[str, str],
-                          free: Sequence[str]) -> Mapping[str, str]:
-        """
-        Returns the ACTUAL dict extended by initial FORMAL arguments matched to
-        FREE values.
-        """
-        if len(free) > len(formal):
-            raise Cmd.SyntaxError('too many free arguments: expected at most %d'
-                                  % (len(formal),))
-
-        result = copy.copy(actual)
-        for name, value in zip(formal, free):
-            if name in result:
-                raise Cmd.SyntaxError('cannot assign free argument to %s: '
-                                      'argument already present' % (name,))
-
-            result[name] = self._construct_arg(formal[name], value)
-
-        return result
-
-    @staticmethod
-    def _fill_default_args(formal: Mapping[str, inspect.Parameter],
-                           actual: Mapping[str, str]):
-        """
-        Returns the ACTUAL dict extended by default values of unassigned FORMAL
-        parameters.
-        """
-        result = copy.copy(actual)
-        for name, param in formal.items():
-            if (name not in result
-                    and param.default is not inspect.Parameter.empty):
-                result[name] = param.default
-
-        return result
-
     def _get_all_commands(self) -> CommandsDict:
         """Returns all defined commands."""
         import types
@@ -516,12 +530,8 @@ class Cmd:
     def _execute_cmd(self,
                      command: CommandInvocation) -> Any:
         """Executes given COMMAND."""
-        cmds = self._get_all_commands()
-        cmd = cmds.choose(command.command, verbose=True)
-        typed_args = self._construct_args(cmd.parameters,
-                                          command.named_args, command.free_args)
-
-        return cmd.handler(self, **typed_args)
+        invoker = CommandInvoker(self._get_all_commands())
+        return invoker.invoke(self, command=command)
 
     def emptyline(self):
         pass
