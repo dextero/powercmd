@@ -121,5 +121,5 @@ class TestCompleter(unittest.TestCase):
                              [Completion('arg', start_position=-3, display_meta=str(TestType))])
 
         with TestType.powercmd_complete.expect_call('c'):
-            self.assertEqual(list(completer.get_completions(Document(text='test arg=', cursor_position=9))),
-                             [Completion('complete', start_position=0, display_meta=str(TestType))])
+            self.assertEqual(list(completer.get_completions(Document(text='test arg=c', cursor_position=9))),
+                             [Completion('complete', start_position=-1, display_meta=str(TestType))])
