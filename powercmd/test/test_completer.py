@@ -53,8 +53,8 @@ class TestCompleter(unittest.TestCase):
         completer = Completer(cmds)
 
         self.assertEqual(list(completer.get_completions(Document(text='test arg=', cursor_position=9))),
-                         [Completion('First', start_position=0, display_meta=str(str)),
-                          Completion('Second', start_position=0, display_meta=str(str))])
+                         [Completion('First', start_position=0, display_meta='1'),
+                          Completion('Second', start_position=0, display_meta='2')])
 
     def test_complete_list(self):
         def do_test(self,
@@ -66,12 +66,12 @@ class TestCompleter(unittest.TestCase):
         completer = Completer(cmds)
 
         self.assertEqual(list(completer.get_completions(Document(text='test arg=', cursor_position=9))),
-                         [Completion('First', start_position=0, display_meta=str(str)),
-                          Completion('Second', start_position=0, display_meta=str(str))])
+                         [Completion('First', start_position=0, display_meta='1'),
+                          Completion('Second', start_position=0, display_meta='2')])
 
         self.assertEqual(list(completer.get_completions(Document(text='test arg=First,', cursor_position=14))),
-                         [Completion('First', start_position=0, display_meta=str(str)),
-                          Completion('Second', start_position=0, display_meta=str(str))])
+                         [Completion('First', start_position=0, display_meta='1'),
+                          Completion('Second', start_position=0, display_meta='2')])
 
     def test_complete_tuple(self):
         class TestEnum2(enum.Enum):
@@ -87,12 +87,12 @@ class TestCompleter(unittest.TestCase):
         completer = Completer(cmds)
 
         self.assertEqual(list(completer.get_completions(Document(text='test arg=', cursor_position=9))),
-                         [Completion('First', start_position=0, display_meta=str(str)),
-                          Completion('Second', start_position=0, display_meta=str(str))])
+                         [Completion('First', start_position=0, display_meta='1'),
+                          Completion('Second', start_position=0, display_meta='2')])
 
         self.assertEqual(list(completer.get_completions(Document(text='test arg=First,', cursor_position=14))),
-                         [Completion('A', start_position=0, display_meta=str(str)),
-                          Completion('B', start_position=0, display_meta=str(str))])
+                         [Completion('A', start_position=0, display_meta='1'),
+                          Completion('B', start_position=0, display_meta='2')])
 
         self.assertEqual(list(completer.get_completions(Document(text='test arg=First,A,', cursor_position=16))),
                          [])
