@@ -1,11 +1,12 @@
 import unittest
 from typing import List, Tuple
 
-from powercmd.test import test_utils
+from powercmd.exceptions import InvalidInput
 from powercmd.command import Command
 from powercmd.command_invoker import CommandInvoker
 from powercmd.command_line import CommandLine
 from powercmd.commands_dict import CommandsDict
+from powercmd.test import test_utils
 
 
 class TestCommandInvoker(unittest.TestCase):
@@ -97,7 +98,7 @@ class TestCommandInvoker(unittest.TestCase):
                                  second=2):
             invoker.invoke(self, cmdline=CommandLine('test first second=2'))
 
-        with do_test.expect_no_calls():
+        with do_test.expect_no_calls(), self.assertRaises(InvalidInput):
             invoker.invoke(self, cmdline=CommandLine('test first=first 2'))
 
     def test_invoke_list(self):
