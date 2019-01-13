@@ -18,7 +18,7 @@ class TestCommandInvoker(unittest.TestCase):
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(str_var='str'):
-            invoker.invoke(CommandLine('test str'))
+            invoker.invoke(self, cmdline=CommandLine('test str'))
 
     def test_invoke_primitive_int(self):
         @test_utils.mock
@@ -30,7 +30,7 @@ class TestCommandInvoker(unittest.TestCase):
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(int_var=42):
-            invoker.invoke(CommandLine('test 42'))
+            invoker.invoke(self, cmdline=CommandLine('test 42'))
 
     def test_invoke_class(self):
         class ClassConstructor(str):
@@ -46,7 +46,7 @@ class TestCommandInvoker(unittest.TestCase):
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(cls_var=ClassConstructor('cls')):
-            invoker.invoke(CommandLine('test cls'))
+            invoker.invoke(self, cmdline=CommandLine('test cls'))
 
     def test_invoke_free_args(self):
         def do_test(self,
@@ -60,7 +60,7 @@ class TestCommandInvoker(unittest.TestCase):
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(first='first',
                                  second=2):
-            invoker.invoke(CommandLine('test first 2'))
+            invoker.invoke(self, cmdline=CommandLine('test first 2'))
 
     def test_invoke_named_args(self):
         @test_utils.mock
@@ -75,10 +75,10 @@ class TestCommandInvoker(unittest.TestCase):
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(first='first',
                                  second=2):
-            invoker.invoke(CommandLine('test first=first second=2'))
+            invoker.invoke(self, cmdline=CommandLine('test first=first second=2'))
         with do_test.expect_call(first='first',
                                  second=2):
-            invoker.invoke(CommandLine('test second=2 first=first'))
+            invoker.invoke(self, cmdline=CommandLine('test second=2 first=first'))
 
     def test_invoke_mixed_free_named(self):
         @test_utils.mock
@@ -93,10 +93,10 @@ class TestCommandInvoker(unittest.TestCase):
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(first='first',
                                  second=2):
-            invoker.invoke(CommandLine('test first second=2'))
+            invoker.invoke(self, cmdline=CommandLine('test first second=2'))
 
         with do_test.expect_no_calls():
-            invoker.invoke(CommandLine('test first=first 2'))
+            invoker.invoke(self, cmdline=CommandLine('test first=first 2'))
 
     def test_invoke_list(self):
         @test_utils.mock
@@ -109,7 +109,7 @@ class TestCommandInvoker(unittest.TestCase):
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(arg=[3, 42]):
-            invoker.invoke(CommandLine('test arg=[3,42]'))
+            invoker.invoke(self, cmdline=CommandLine('test arg=[3,42]'))
 
     def test_construct_tuple(self):
         @test_utils.mock
@@ -122,4 +122,4 @@ class TestCommandInvoker(unittest.TestCase):
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(arg=(float(3), 'foo')):
-            invoker.invoke(CommandLine('test arg=(3,foo)'))
+            invoker.invoke(self, cmdline=CommandLine('test arg=(3,foo)'))
