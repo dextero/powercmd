@@ -69,7 +69,7 @@ class Completer(prompt_toolkit.completion.Completer):
         matching_vals = (enum[name] for name in matching_names)
         yield from (Completion(val.name,
                                start_position=-len(incomplete_value),
-                               display_meta=val.value)
+                               display_meta=str(val.value))
                     for val in matching_vals)
 
     def _complete_custom(self,
