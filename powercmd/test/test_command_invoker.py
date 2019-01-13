@@ -1,11 +1,11 @@
 import unittest
 from typing import List, Tuple
 
-from powercmd.exceptions import InvalidInput
 from powercmd.command import Command
 from powercmd.command_invoker import CommandInvoker
 from powercmd.command_line import CommandLine
 from powercmd.commands_dict import CommandsDict
+from powercmd.exceptions import InvalidInput
 from powercmd.test import test_utils
 
 

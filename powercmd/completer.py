@@ -9,8 +9,8 @@ from prompt_toolkit.document import Document
 from powercmd.command import Command
 from powercmd.commands_dict import CommandsDict
 from powercmd.match_string import match_string
-from powercmd.utils import is_generic_list, is_generic_tuple, is_generic_type
 from powercmd.split_list import split_list
+from powercmd.utils import is_generic_list, is_generic_tuple, is_generic_type
 
 
 class Completer(prompt_toolkit.completion.Completer):

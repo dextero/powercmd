@@ -5,9 +5,6 @@ Utility class for parsing command lines.
 import collections
 import re
 import shlex
-from typing import Sequence
-
-from .extra_typing import OrderedMapping
 
 
 class CommandLine:

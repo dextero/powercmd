@@ -1,10 +1,10 @@
 import copy
 import enum
 import inspect
-from typing import List, Callable, Tuple, Any, Sequence, Mapping
+from typing import Any, Callable, List, Mapping, Sequence, Tuple
 
-from powercmd.commands_dict import CommandsDict
 from powercmd.command_line import CommandLine
+from powercmd.commands_dict import CommandsDict
 from powercmd.exceptions import InvalidInput
 from powercmd.extra_typing import OrderedMapping
 from powercmd.split_list import split_list

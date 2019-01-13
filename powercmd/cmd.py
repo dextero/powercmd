@@ -37,18 +37,17 @@ Example:
 import inspect
 import sys
 import traceback
-from typing import Any
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 
+from powercmd.command import Command
 from powercmd.command_invoker import CommandInvoker
 from powercmd.command_line import CommandLine
 from powercmd.commands_dict import CommandsDict
 from powercmd.completer import Completer
 from powercmd.exceptions import InvalidInput
-from powercmd.command import Command
 
 
 class Cmd:

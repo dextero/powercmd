@@ -2,13 +2,13 @@ import enum
 import unittest
 from typing import List, Tuple
 
-from powercmd.completer import Completer
-from powercmd.command import Command
-from powercmd.commands_dict import CommandsDict
-from powercmd.test import test_utils
-
 from prompt_toolkit.completion import Completion
 from prompt_toolkit.document import Document
+
+from powercmd.command import Command
+from powercmd.commands_dict import CommandsDict
+from powercmd.completer import Completer
+from powercmd.test import test_utils
 
 
 class TestEnum(enum.Enum):

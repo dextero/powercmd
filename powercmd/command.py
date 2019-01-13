@@ -1,10 +1,9 @@
 import collections
 import inspect
 import textwrap
-from typing import Callable, Mapping
+from typing import Mapping
 
 from powercmd.extra_typing import OrderedMapping
-
 
 NO_DEFAULT = inspect._empty
 

@@ -2,7 +2,7 @@
 Utility functions that do not belong anywhere else.
 """
 
-from typing import List, Any, Tuple
+from typing import Any, List, Tuple
 
 
 def get_available_instance_names(cls: type,

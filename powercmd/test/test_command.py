@@ -1,6 +1,6 @@
 import unittest
 
-from powercmd.command import Command, Parameter, NO_DEFAULT
+from powercmd.command import NO_DEFAULT, Command, Parameter
 
 
 class CommandTest(unittest.TestCase):
