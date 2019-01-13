@@ -2,6 +2,7 @@ import unittest
 from typing import List, Tuple
 
 from powercmd.test import test_utils
+from powercmd.command import Command
 from powercmd.command_invoker import CommandInvoker
 from powercmd.command_line import CommandLine
 from powercmd.commands_dict import CommandsDict
@@ -14,7 +15,7 @@ class TestCommandInvoker(unittest.TestCase):
             pass
 
         cmds = CommandsDict()
-        cmds['test'] = do_test
+        cmds['test'] = Command('test', do_test)
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(str_var='str'):
@@ -26,7 +27,7 @@ class TestCommandInvoker(unittest.TestCase):
             pass
 
         cmds = CommandsDict()
-        cmds['test'] = do_test
+        cmds['test'] = Command('test', do_test)
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(int_var=42):
@@ -42,20 +43,21 @@ class TestCommandInvoker(unittest.TestCase):
             pass
 
         cmds = CommandsDict()
-        cmds['test'] = do_test
+        cmds['test'] = Command('test', do_test)
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(cls_var=ClassConstructor('cls')):
             invoker.invoke(self, cmdline=CommandLine('test cls'))
 
     def test_invoke_free_args(self):
+        @test_utils.mock
         def do_test(self,
                     first: str,
                     second: int):
             pass
 
         cmds = CommandsDict()
-        cmds['test'] = do_test
+        cmds['test'] = Command('test', do_test)
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(first='first',
@@ -70,7 +72,7 @@ class TestCommandInvoker(unittest.TestCase):
             pass
 
         cmds = CommandsDict()
-        cmds['test'] = do_test
+        cmds['test'] = Command('test', do_test)
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(first='first',
@@ -88,7 +90,7 @@ class TestCommandInvoker(unittest.TestCase):
             pass
 
         cmds = CommandsDict()
-        cmds['test'] = do_test
+        cmds['test'] = Command('test', do_test)
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(first='first',
@@ -105,7 +107,7 @@ class TestCommandInvoker(unittest.TestCase):
             pass
 
         cmds = CommandsDict()
-        cmds['test'] = do_test
+        cmds['test'] = Command('test', do_test)
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(arg=[3, 42]):
@@ -118,7 +120,7 @@ class TestCommandInvoker(unittest.TestCase):
             pass
 
         cmds = CommandsDict()
-        cmds['test'] = do_test
+        cmds['test'] = Command('test', do_test)
 
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(arg=(float(3), 'foo')):
