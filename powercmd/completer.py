@@ -110,7 +110,7 @@ class Completer(prompt_toolkit.completion.Completer):
 
     def get_completions(self,
                         document: Document,
-                        _complete_event: CompleteEvent) -> Sequence[Completion]:
+                        _complete_event: CompleteEvent = None) -> Sequence[Completion]:
         """
         Returns a sequence of completions for given command line.
         """
