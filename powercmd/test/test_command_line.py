@@ -7,7 +7,7 @@ class TestCommandLine(unittest.TestCase):
     def test_parse(self):
         cmdline = CommandLine('')
         self.assertEqual(cmdline.command, '')
-        self.assertEqual(cmdline.typed_args, {})
+        self.assertEqual(cmdline.named_args, {})
         self.assertEqual(cmdline.free_args, [])
 
         cmdline = CommandLine('foo')
