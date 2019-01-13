@@ -1,29 +1,38 @@
 import unittest
 
-from powercmd.command_invocation import CommandInvocation
+from powercmd.command_line import CommandLine
 
 
-class TestCommandInvocation(unittest.TestCase):
+class TestCommandLine(unittest.TestCase):
     def test_parse(self):
-        assertEqual = self.assertEqual
+        cmdline = CommandLine('')
+        self.assertEqual(cmdline.command, '')
+        self.assertEqual(cmdline.typed_args, {})
+        self.assertEqual(cmdline.free_args, [])
 
-        assertEqual(CommandInvocation(command=''),
-                    CommandInvocation.from_cmdline(''))
-        assertEqual(CommandInvocation(command='foo'),
-                    CommandInvocation.from_cmdline('foo'))
+        cmdline = CommandLine('foo')
+        self.assertEqual(cmdline.command, 'foo')
 
-        assertEqual(CommandInvocation(command='foo', free_args=['bar']),
-                    CommandInvocation.from_cmdline('foo bar'))
+        cmdline = CommandLine('foo bar')
+        self.assertEqual(cmdline.command, 'foo')
+        self.assertEqual(cmdline.free_args, ['bar'])
 
-        assertEqual(CommandInvocation(command='foo', free_args=['bar']),
-                    CommandInvocation.from_cmdline('foo\tbar'))
-        assertEqual(CommandInvocation(command='foo', free_args=['bar']),
-                    CommandInvocation.from_cmdline('foo \tbar'))
+        cmdline = CommandLine('foo\tbar')
+        self.assertEqual(cmdline.command, 'foo')
+        self.assertEqual(cmdline.free_args, ['bar'])
 
-        assertEqual(CommandInvocation(command='foo', free_args=['bar \tbaz']),
-                    CommandInvocation.from_cmdline('foo "bar \tbaz"'))
-        assertEqual(CommandInvocation(command='foo', free_args=['bar \tbaz']),
-                    CommandInvocation.from_cmdline('foo \'bar \tbaz\''))
+        cmdline = CommandLine('foo \tbar')
+        self.assertEqual(cmdline.command, 'foo')
+        self.assertEqual(cmdline.free_args, ['bar'])
 
-        assertEqual(CommandInvocation(command='foo', named_args={'bar': 'baz'}),
-                    CommandInvocation.from_cmdline('foo bar=baz'))
+        cmdline = CommandLine('foo "bar \tbaz"')
+        self.assertEqual(cmdline.command, 'foo')
+        self.assertEqual(cmdline.free_args, ['bar \tbaz'])
+
+        cmdline = CommandLine('foo \'bar \tbaz\'')
+        self.assertEqual(cmdline.command, 'foo')
+        self.assertEqual(cmdline.free_args, ['bar \tbaz'])
+
+        cmdline = CommandLine('foo bar=baz')
+        self.assertEqual(cmdline.command, 'foo')
+        self.assertEqual(cmdline.named_args, {'bar': 'baz'})
