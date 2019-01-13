@@ -117,9 +117,9 @@ class TestCompleter(unittest.TestCase):
         completer = Completer(cmds)
 
         with TestType.powercmd_complete.expect_no_calls():
-            self.assertEqual(list(completer.get_completions(Document(text='test arg', cursor_position=8)))
+            self.assertEqual(list(completer.get_completions(Document(text='test arg', cursor_position=8))),
                              [Completion('arg', start_position=-3, display_meta=str(TestType))])
 
         with TestType.powercmd_complete.expect_call('c'):
-            self.assertEqual(list(completer.get_completions(Document(text='test arg=', cursor_position=9)))
+            self.assertEqual(list(completer.get_completions(Document(text='test arg=', cursor_position=9))),
                              [Completion('complete', start_position=0, display_meta=str(TestType))])
