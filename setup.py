@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='powercmd',
-      version='0.2',
+      version='0.2.1',
       description='A generic framework to build typesafe line-oriented command interpreters',
       url='http://github.com/dextero/powercmd',
       author='Marcin Radomski',
