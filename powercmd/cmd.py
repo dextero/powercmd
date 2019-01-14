@@ -37,6 +37,7 @@ Example:
 import inspect
 import sys
 import traceback
+import os
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
@@ -190,8 +191,12 @@ class Cmd:
         completer = Completer(self._get_all_commands())
         try:
             while True:
-                with patch_stdout():
-                    cmd = self._session.prompt(self.prompt, completer=completer, style=self.prompt_style)
+                if os.isatty(sys.stdin.fileno()):
+                    with patch_stdout():
+                        cmd = self._session.prompt(self.prompt, completer=completer, style=self.prompt_style)
+                else:
+                    cmd = input(self.prompt)
+
                 self.onecmd(cmd)
         except EOFError:
             pass
