@@ -40,6 +40,7 @@ import traceback
 import os
 
 from prompt_toolkit import PromptSession
+from prompt_toolkit.history import History
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.styles import Style
 
@@ -55,9 +56,9 @@ class Cmd:
     """
     A simple framework for writing typesafe line-oriented command interpreters.
     """
-    def __init__(self):
+    def __init__(self, history: History = None):
         self._last_exception = None
-        self._session = PromptSession()
+        self._session = PromptSession(history=history)
 
         self.prompt = '> '
         self.prompt_style = Style.from_dict({'': 'bold'})
