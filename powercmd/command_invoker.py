@@ -5,14 +5,14 @@ Utilities for constructing command arguments.
 import copy
 import enum
 import inspect
-from typing import Any, Callable, List, Mapping, Sequence, Tuple
+from typing import Any, Callable, List, Mapping, Sequence, Tuple, Union
 
 from powercmd.command_line import CommandLine
 from powercmd.commands_dict import CommandsDict
 from powercmd.exceptions import InvalidInput
 from powercmd.extra_typing import OrderedMapping
 from powercmd.split_list import split_list
-from powercmd.utils import is_generic_list, is_generic_tuple, is_generic_type
+from powercmd.utils import is_generic_list, is_generic_tuple, is_generic_union, is_generic_type
 
 
 class CommandInvoker:
@@ -75,6 +75,27 @@ class CommandInvoker:
 
         return construct_tuple
 
+    def _get_union_ctor(self,
+                        annotation: Union):
+        """
+        Returns a function that parses a string into the first matching type of
+        ANNOTATION.
+        """
+        internal_types = (getattr(annotation, '__args__', None)
+                          or getattr(annotation, '__union_types__', None))
+        if internal_types is None:
+            raise TypeError('%s is not a union type' % (repr(annotation),))
+
+        def construct_union(text):
+            for internal_type in internal_types:
+                ctor = self.get_constructor(internal_type)
+                try:
+                    return ctor(text)
+                except ValueError:
+                    pass
+
+        return construct_union
+
     # pylint: disable=no-self-use
     def get_constructor(self,
                         annotation: Any) -> Callable[[str], Any]:
@@ -117,6 +138,8 @@ class CommandInvoker:
             return self._get_list_ctor(annotation)
         if is_generic_tuple(annotation):
             return self._get_tuple_ctor(annotation)
+        if is_generic_union(annotation):
+            return self._get_union_ctor(annotation)
 
         raise NotImplementedError('generic constructor for %s not implemented'
                                   % (annotation,))

@@ -2,7 +2,7 @@
 Utility functions that do not belong anywhere else.
 """
 
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Union
 
 
 def get_available_instance_names(cls: type,
@@ -53,9 +53,17 @@ def is_generic_tuple(annotation: Any):
     return getattr(annotation, '__origin__', None) in (Tuple, tuple)
 
 
+def is_generic_union(annotation: Any):
+    """Checks if ANNOTATION is Union[...]."""
+    # python<3.6 does not have __origin__
+    return (hasattr(annotation, '__union_params__')
+            or getattr(annotation, '__origin__', None) in (Union,))
+
+
 def is_generic_type(annotation: Any) -> bool:
     """
     Checks if the type described by ANNOTATION is a generic one.
     """
     return (is_generic_list(annotation)
-            or is_generic_tuple(annotation))
+            or is_generic_tuple(annotation)
+            or is_generic_union(annotation))

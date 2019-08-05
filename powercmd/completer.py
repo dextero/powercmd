@@ -14,7 +14,7 @@ from powercmd.command import Command
 from powercmd.commands_dict import CommandsDict
 from powercmd.match_string import match_string
 from powercmd.split_list import split_list
-from powercmd.utils import is_generic_list, is_generic_tuple, is_generic_type
+from powercmd.utils import is_generic_list, is_generic_tuple, is_generic_union, is_generic_type
 
 
 class Completer(prompt_toolkit.completion.Completer):
@@ -68,6 +68,18 @@ class Completer(prompt_toolkit.completion.Completer):
             return []
         return self._complete_value(inner_types[len(args) - 1], args[-1])
 
+    def _complete_generic_union(self,
+                                inner_types: Sequence[type],
+                                incomplete_value: str):
+        """
+        Returns completions for any of INNER_TYPES.
+        """
+        for inner_type in inner_types:
+            try:
+                yield from self._complete_value(inner_type, incomplete_value)
+            except ValueError:
+                pass
+
     @staticmethod
     def _complete_enum(enum_hint: type,
                        incomplete_value: str):
@@ -107,6 +119,10 @@ class Completer(prompt_toolkit.completion.Completer):
                 return self._complete_generic_list(type_hint.__args__[0], incomplete_value)
             if is_generic_tuple(type_hint):
                 return self._complete_generic_tuple(type_hint.__args__, incomplete_value)
+            if is_generic_union(type_hint):
+                return self._complete_generic_union(getattr(type_hint, '__args__',
+                                                            getattr(type_hint, '__union_types__', None)),
+                                                    incomplete_value)
             raise NotImplementedError('generic constructor for %s not implemented'
                                       % (type_hint,))
 

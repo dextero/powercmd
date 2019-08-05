@@ -1,5 +1,5 @@
 import unittest
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from powercmd.command import Command
 from powercmd.command_invoker import CommandInvoker
@@ -126,3 +126,18 @@ class TestCommandInvoker(unittest.TestCase):
         invoker = CommandInvoker(cmds)
         with do_test.expect_call(arg=(float(3), 'foo')):
             invoker.invoke(self, cmdline=CommandLine('test arg=(3,foo)'))
+
+    def test_construct_union(self):
+        @test_utils.mock
+        def do_test(self,
+                    arg: Union[float, str]):
+            pass
+
+        cmds = CommandsDict()
+        cmds['test'] = Command('test', do_test)
+
+        invoker = CommandInvoker(cmds)
+        with do_test.expect_call(arg=3.14):
+            invoker.invoke(self, cmdline=CommandLine('test arg=3.14'))
+        with do_test.expect_call(arg='test_arg'):
+            invoker.invoke(self, cmdline=CommandLine('test arg=test_arg'))
