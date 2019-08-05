@@ -12,7 +12,8 @@ from powercmd.commands_dict import CommandsDict
 from powercmd.exceptions import InvalidInput
 from powercmd.extra_typing import OrderedMapping
 from powercmd.split_list import split_list
-from powercmd.utils import is_generic_list, is_generic_tuple, is_generic_union, is_generic_type
+from powercmd.utils import (is_generic_list, is_generic_tuple, is_generic_type,
+                            is_generic_union)
 
 
 class CommandInvoker:

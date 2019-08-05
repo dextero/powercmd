@@ -35,9 +35,9 @@ Example:
 """
 
 import inspect
+import os
 import sys
 import traceback
-import os
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import History

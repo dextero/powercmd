@@ -30,8 +30,7 @@ class CommandLine:
                 name, value = word.split('=', maxsplit=1)
                 if name in self.named_args:
                     raise ValueError('multiple values for key: %s' % (name,))
-                else:
-                    self.named_args[name] = value
+                self.named_args[name] = value
             else:
                 self.free_args.append(word)
 

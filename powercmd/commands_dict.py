@@ -23,8 +23,7 @@ class CommandsDict(dict):
 
         if not matches:
             raise InvalidInput('no such command: %s' % (short_cmd,))
-        elif len(matches) > 1:
+        if len(matches) > 1:
             raise InvalidInput('ambigious command: %s (possible: %s)'
                                % (short_cmd, ' '.join(matches)))
-        else:
-            return self[matches[0]]
+        return self[matches[0]]
