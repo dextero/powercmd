@@ -5,6 +5,7 @@ Utilities for constructing command arguments.
 import copy
 import enum
 import inspect
+import logging
 from typing import Any, Callable, List, Mapping, Sequence, Tuple, Union
 
 from powercmd.command_line import CommandLine
@@ -154,7 +155,10 @@ class CommandInvoker:
         """
         ctor = self.get_constructor(formal_param.type)
         try:
-            return ctor(value)
+            logging.debug('construct %s from: %r', formal_param.type, value)
+            result = ctor(value)
+            logging.debug('= %r', result)
+            return result
         except ValueError as exc:
             raise InvalidInput(exc)
 
