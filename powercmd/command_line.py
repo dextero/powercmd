@@ -57,10 +57,7 @@ class CommandLine:
         return words
 
     def __init__(self, cmdline: str):
-        # shlex.split() makes inputting strings annoying,
-        # TODO: find an alternative
-        words = shlex.split(cmdline)
-        # words = cmdline.split()
+        words = self.split(cmdline)
 
         self.command = words[0] if words else ''
         self.named_args = collections.OrderedDict()
