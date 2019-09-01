@@ -4,7 +4,7 @@ Utility class for parsing command lines.
 
 import collections
 import re
-import shlex
+from typing import List
 
 
 class CommandLine:
@@ -14,6 +14,47 @@ class CommandLine:
     The command line is split into base command, named and free arguments for
     easier handling.
     """
+
+    @staticmethod
+    def split(text: str) -> List[str]:
+        """
+        Splits TEXT into words, honoring quoting. Quotes are preserved unless
+        the entire word is quoted.
+        """
+        words = []
+        curr_word = ''
+        surrounding_quote = None
+        quote = None
+
+        for char in text:
+            if char.isspace() and not quote:
+                if curr_word:
+                    if surrounding_quote:
+                        curr_word = curr_word[1:-1]
+                    words.append(curr_word)
+                    curr_word = ''
+                continue
+
+            if char in ('"', "'") and quote and quote == char:
+                quote = None
+            elif char in ('"', "'") and not quote:
+                quote = char
+                if not curr_word:
+                    surrounding_quote = quote
+            elif not quote:
+                surrounding_quote = False
+
+            curr_word += char
+
+        if quote:
+            raise ValueError("Unterminated quoted string: " + curr_word)
+
+        if curr_word:
+            if surrounding_quote:
+                curr_word = curr_word[1:-1]
+            words.append(curr_word)
+
+        return words
 
     def __init__(self, cmdline: str):
         # shlex.split() makes inputting strings annoying,
