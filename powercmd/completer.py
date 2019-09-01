@@ -55,6 +55,8 @@ class Completer(prompt_toolkit.completion.Completer):
         """
         Returns completions for a list of values of INNER_TYPE.
         """
+        if incomplete_value.startswith('['):
+            incomplete_value = incomplete_value[1:]
         args = list(split_list(incomplete_value, allow_unmatched=True))
         return self._complete_value(inner_type, args[-1])
 
@@ -64,6 +66,8 @@ class Completer(prompt_toolkit.completion.Completer):
         """
         Returns completions for one of tuple values matching one of INNER_TYPES.
         """
+        if incomplete_value.startswith('('):
+            incomplete_value = incomplete_value[1:]
         args = list(split_list(incomplete_value, allow_unmatched=True))
         if len(args) > len(inner_types):
             return []
