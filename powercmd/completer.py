@@ -46,7 +46,7 @@ class Completer(prompt_toolkit.completion.Completer):
                            for param in match_string(incomplete_param, cmd.parameters))
         yield from (Completion(param.name,
                                start_position=-len(incomplete_param),
-                               display_meta=str(param.type))
+                               display_meta=str(param.type.__name__))
                     for param in matching_params)
 
     def _complete_generic_list(self,
