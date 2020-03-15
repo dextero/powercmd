@@ -1,4 +1,5 @@
 import powercmd
+from powercmd.match_string import match_string
 
 
 class CustomClassWithStringCtor:
@@ -12,7 +13,23 @@ class CustomClassWithStringCtor:
 class CustomClassWithPowercmdParse:
     @staticmethod
     def powercmd_parse(text):
+        """
+        If a type has a static powercmd_parse method, it is used to construct
+        an object of that type from typed TEXT.
+        """
         return CustomClassWithPowercmdParse(text, caller='powercmd_parse')
+
+    @staticmethod
+    def powercmd_complete(text):
+        """
+        If a type has a static powercmd_complete method, it's called to get a
+        list of possible autocompletions for given input TEXT.
+
+        powercmd.match_string contains match_string and simple_match_string
+        functions that may be used to filter a list of possibilities using
+        various match strategies (like e.g. fuzzy search).
+        """
+        return match_string(text, ['first_completion', 'second_completion'])
 
     def __init__(self, text, caller='user'):
         self.text = text
