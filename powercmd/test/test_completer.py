@@ -32,16 +32,16 @@ class TestCompleter(unittest.TestCase):
                          [Completion('test', start_position=-1)])
 
         self.assertEqual(list(completer.get_completions(Document(text='test ', cursor_position=5))),
-                         [Completion('arg_first', start_position=0, display_meta=str(str)),
-                          Completion('arg_second', start_position=0, display_meta=str(int)),
-                          Completion('third', start_position=0, display_meta=str(str))])
+                         [Completion('arg_first', start_position=0, display_meta=str.__name__),
+                          Completion('arg_second', start_position=0, display_meta=int.__name__),
+                          Completion('third', start_position=0, display_meta=str.__name__)])
 
         self.assertEqual(list(completer.get_completions(Document(text='test arg', cursor_position=8))),
-                         [Completion('arg_first', start_position=-3, display_meta=str(str)),
-                          Completion('arg_second', start_position=-3, display_meta=str(int))])
+                         [Completion('arg_first', start_position=-3, display_meta=str.__name__),
+                          Completion('arg_second', start_position=-3, display_meta=int.__name__)])
 
         self.assertEqual(list(completer.get_completions(Document(text='test arg_f', cursor_position=10))),
-                         [Completion('arg_first', start_position=-5, display_meta=str(str))])
+                         [Completion('arg_first', start_position=-5, display_meta=str.__name__)])
 
     def test_complete_enum(self):
         def do_test(self,
@@ -148,7 +148,7 @@ class TestCompleter(unittest.TestCase):
 
         with TestType.powercmd_complete.expect_no_calls():
             self.assertEqual(list(completer.get_completions(Document(text='test arg', cursor_position=8))),
-                             [Completion('arg', start_position=-3, display_meta=str(TestType))])
+                             [Completion('arg', start_position=-3, display_meta=TestType.__name__)])
 
         with TestType.powercmd_complete.expect_call('c'):
             self.assertEqual(list(completer.get_completions(Document(text='test arg=c', cursor_position=9))),
