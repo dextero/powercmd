@@ -2,18 +2,22 @@
 Utilities for constructing command arguments.
 """
 
+import collections
 import copy
 import enum
 import inspect
-from typing import Any, Callable, List, Mapping, Sequence, Tuple, Union
+from typing import Any, Callable, List, Mapping, Sequence, Tuple, Union, Optional
 
-from powercmd.command_line import CommandLine
+from powercmd.command_line import CommandLine, NamedArg, PositionalArg
 from powercmd.commands_dict import CommandsDict
 from powercmd.exceptions import InvalidInput
 from powercmd.extra_typing import OrderedMapping
 from powercmd.split_list import split_list
 from powercmd.utils import (is_generic_list, is_generic_tuple, is_generic_type,
                             is_generic_union)
+
+
+class MissingArg: pass
 
 
 class CommandInvoker:
@@ -183,6 +187,8 @@ class CommandInvoker:
         for name, value in assigned_args.items():
             if name in constructed_args:
                 raise InvalidInput('duplicate value for argument: %s' % (name,))
+            if value is MissingArg:
+                raise InvalidInput('missing value for argument: %s' % (name,))
 
             constructed_args[name] = CommandInvoker._construct_arg(formal[name], value)
 
@@ -191,27 +197,39 @@ class CommandInvoker:
 
     @staticmethod
     def _assign_args(formal: OrderedMapping[str, inspect.Parameter],
-                     named_args: Mapping[str, str],
-                     free_args: Sequence[str]) -> Mapping[str, str]:
+                     args: Sequence[Union[NamedArg, PositionalArg]]) -> OrderedMapping[str, str]:
         """
         Assigns arguments to named command parameters. Does not handle default
         arguments.
         """
-        typed_args = {}
-        extra_free = []
+        args = copy.copy(args)
 
-        for name, value in named_args.items():
-            if name not in formal:
-                print('unrecognized argument: %s' % (name,))
-                extra_free.append('%s=%s' % (name, value))
-            elif name in typed_args:
-                raise InvalidInput('duplicate value for argument: %s' % (name,))
+        def pop_arg(name: Optional[str]) -> Optional[str]:
+            for idx, arg in enumerate(args):
+                if isinstance(arg, NamedArg):
+                    if arg.name == name:
+                        return args.pop(idx).value
+
+            for idx, arg in enumerate(args):
+                if isinstance(arg, NamedArg) and arg.name not in formal:
+                    print('unrecognized argument: %s' % (arg.name,))
+                    return args.pop(idx).value
+                if isinstance(arg, PositionalArg):
+                    return args.pop(idx).value
+
+            return None
+
+        assigned_args = collections.OrderedDict()
+
+        for name in formal:
+            arg_value = pop_arg(name)
+            if arg_value is not None:
+                assigned_args[name] = arg_value
             else:
-                typed_args[name] = value
+                assigned_args[name] = MissingArg
 
-        typed_args = CommandInvoker._assign_free_args(formal, typed_args,
-                                                      free_args + extra_free)
-        return typed_args
+        assigned_args = CommandInvoker._assign_free_args(formal, assigned_args, args)
+        return assigned_args
 
     @staticmethod
     def _assign_free_args(formal: OrderedMapping[str, inspect.Parameter],
@@ -227,7 +245,7 @@ class CommandInvoker:
 
         result = copy.copy(actual)
         for name, value in zip(formal, free):
-            if name in result:
+            if result[name] is not MissingArg:
                 raise InvalidInput('cannot assign free argument to %s: '
                                    'argument already present' % (name,))
 
@@ -243,8 +261,7 @@ class CommandInvoker:
         ARGS are passed to the handler.
         """
         cmd = self._cmds.choose(cmdline.command, verbose=True)
-        assigned_args = self._assign_args(cmd.parameters,
-                                          cmdline.named_args, cmdline.free_args)
+        assigned_args = self._assign_args(cmd.parameters, cmdline.args)
         typed_args = self._construct_args(cmd.parameters, assigned_args)
 
         return cmd.handler(*args, **typed_args)

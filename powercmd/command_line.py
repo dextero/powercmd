@@ -40,7 +40,7 @@ class CommandLine:
                 self.args.append(PositionalArg(word))
 
     def __eq__(self, other):
-        return ((self.command, self.args) == (other.command, other.args))
+        return (self.command, self.args) == (other.command, other.args)
 
     def __str__(self):
         return ('command = %s\nargs (%d):\n%s'
