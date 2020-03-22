@@ -239,7 +239,7 @@ class CommandInvoker:
                *args,
                cmdline: CommandLine):
         """
-        Parses CMDLINE and invokes appropriate command handler. Anyy additional
+        Parses CMDLINE and invokes appropriate command handler. Any additional
         ARGS are passed to the handler.
         """
         cmd = self._cmds.choose(cmdline.command, verbose=True)
