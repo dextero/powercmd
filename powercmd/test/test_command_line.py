@@ -131,5 +131,5 @@ class TestCommandLine(unittest.TestCase):
                          IncompleteArg(Parameter('baz', str, ''), ''))
         self.assertEqual(CommandLine('foo arg arg').get_current_arg(cmd),
                          IncompleteArg(Parameter('baz', str, ''), 'arg'))
-        self.assertEqual(CommandLine('foo baz=arg foo=').get_current_arg(cmd),
-                         IncompleteArg(Parameter('foo', str, ''), ''))
+        self.assertEqual(CommandLine('foo baz=arg bar=').get_current_arg(cmd),
+                         IncompleteArg(Parameter('bar', str, ''), ''))

@@ -85,56 +85,40 @@ class CommandLine:
         Assigns arguments to named command parameters. Does not handle default
         arguments.
         """
-        args = copy.copy(self.args)
-
-        def pop_arg(name: Optional[str]) -> Optional[str]:
-            for idx, arg in enumerate(args):
-                if isinstance(arg, NamedArg):
-                    if arg.name == name:
-                        return args.pop(idx).value
-
-            for idx, arg in enumerate(args):
-                if isinstance(arg, NamedArg) and arg.name not in cmd.parameters:
-                    print('unrecognized argument: %s' % (arg.name,))
-                    return args.pop(idx).value
-                if isinstance(arg, PositionalArg):
-                    return args.pop(idx).value
-
-            return None
 
         assigned_args = collections.OrderedDict()
+        extra_free_args = []
+
+        def find_first_unassigned_param():
+            for name in cmd.parameters:
+                if name not in assigned_args:
+                    return name
+
+            raise InvalidInput('cannot assign positional argument: no more expected parameters')
+
+        for arg in self.args:
+            if isinstance(arg, NamedArg):
+                if arg.name in assigned_args:
+                    raise InvalidInput('cannot assign named argument to %s: '
+                                       'argument already present' % (arg.name,))
+                if arg.name in cmd.parameters:
+                    assigned_args[arg.name] = arg.value
+                    continue
+
+                print('unrecognized argument: %s' % (arg.name,))
+                target = find_first_unassigned_param()
+                assigned_args[target] = ('%s=%s' % arg)
+            elif isinstance(arg, PositionalArg):
+                target = find_first_unassigned_param()
+                assigned_args[target] = arg.value
+            else:
+                assert False, 'unexpected argument type: %r' % arg
 
         for name in cmd.parameters:
-            arg_value = pop_arg(name)
-            if arg_value is not None:
-                assigned_args[name] = arg_value
-            else:
+            if name not in assigned_args:
                 assigned_args[name] = MISSING_ARG
 
-        assigned_args = self._assign_free_args(cmd, assigned_args, args)
         return assigned_args
-
-    def _assign_free_args(self,
-                          cmd: Command,
-                          actual: OrderedMapping[str, str],
-                          free: Sequence[str]) -> Mapping[str, str]:
-        """
-        Returns the ACTUAL dict extended by initial FORMAL arguments matched to
-        FREE values.
-        """
-        if len(free) > len(cmd.parameters):
-            raise InvalidInput('too many free arguments: expected at most %d'
-                               % (len(cmd.parameters),))
-
-        result = copy.copy(actual)
-        for name, value in zip(cmd.parameters, free):
-            if result[name] is not MISSING_ARG:
-                raise InvalidInput('cannot assign free argument to %s: '
-                                   'argument already present' % (name,))
-
-            result[name] = value
-
-        return result
 
     def get_current_arg(self,
                         cmd: Command) -> Optional[IncompleteArg]:
