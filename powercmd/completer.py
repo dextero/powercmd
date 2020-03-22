@@ -11,6 +11,7 @@ from prompt_toolkit.completion.base import CompleteEvent
 from prompt_toolkit.document import Document
 
 from powercmd.command import Command
+from powercmd.command_line import CommandLine
 from powercmd.commands_dict import CommandsDict
 from powercmd.match_string import match_string
 from powercmd.split_list import split_list
@@ -46,7 +47,7 @@ class Completer(prompt_toolkit.completion.Completer):
                            for param in match_string(incomplete_param, cmd.parameters))
         yield from (Completion(param.name,
                                start_position=-len(incomplete_param),
-                               display_meta=str(param.type.__name__))
+                               display_meta=str(param.type.__name__ if hasattr(param.type, '__name__') else str(param.type)))
                     for param in matching_params)
 
     def _complete_generic_list(self,
@@ -132,7 +133,7 @@ class Completer(prompt_toolkit.completion.Completer):
         if hasattr(type_hint, 'powercmd_complete'):
             return self._complete_custom(type_hint, incomplete_value)
 
-        return [Completion('', display_meta=str(type_hint))]
+        return []
 
     def get_completions(self,
                         document: Document,
@@ -159,14 +160,18 @@ class Completer(prompt_toolkit.completion.Completer):
             # invalid command
             return []
 
-        incomplete_param = current_word
-        if '=' not in incomplete_param:
-            return self._complete_params(cmd, incomplete_param)
-
-        param_name, incomplete_value = incomplete_param.split('=', maxsplit=1)
-        param = cmd.parameters.get(param_name)
-        if not param:
-            return []
+        cmdline = CommandLine(document.text)
+        incomplete_arg = cmdline.get_current_arg(cmd)
+        completions = []
 
         # TODO: would be cool to exclude existing params
-        return self._complete_value(param.type, incomplete_value)
+        if incomplete_arg is None:
+            # all arguments filled in
+            return []
+
+        completions += self._complete_params(cmd, '' if cmdline.has_trailing_whitespace else cmdline.words[-1])
+
+        if incomplete_arg is not None:
+            completions += self._complete_value(incomplete_arg.param.type, incomplete_arg.value)
+
+        return completions

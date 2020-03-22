@@ -6,7 +6,7 @@ import collections
 import copy
 import re
 
-from typing import Mapping, Sequence, Optional, Union
+from typing import Mapping, Sequence, Optional, Union, List
 
 from powercmd.command import Command, Parameter
 from powercmd.exceptions import InvalidInput
@@ -34,9 +34,8 @@ class CommandLine:
     def __init__(self, cmdline: str):
         self.raw_text = cmdline
         self.quoted_words = split_cmdline(cmdline, allow_unmatched=True)
-
-        words = [drop_enclosing_quotes(word) for word in self.quoted_words]
-
+        self.words = [drop_enclosing_quotes(word) for word in self.quoted_words]
+        words = self.words
         self.command = words[0] if words else ''
         self.args = []
 
@@ -119,6 +118,11 @@ class CommandLine:
                 assigned_args[name] = MISSING_ARG
 
         return assigned_args
+
+    def get_unassigned_params(self,
+                              cmd: Command) -> List[Parameter]:
+        assigned_args = self.assign_args(cmd)
+        return [p for p in cmd.parameters if p.name not in assigned_args]
 
     def get_current_arg(self,
                         cmd: Command) -> Optional[IncompleteArg]:

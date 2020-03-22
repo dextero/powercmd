@@ -52,6 +52,10 @@ class TestCompleter(unittest.TestCase):
         cmds['test'] = Command('test', do_test)
         completer = Completer(cmds)
 
+        self.assertEqual(list(completer.get_completions(Document(text='test ', cursor_position=5))),
+                         [Completion('arg', start_position=0, display_meta=TestEnum.__name__),
+                          Completion('First', start_position=0, display_meta='1'),
+                          Completion('Second', start_position=0, display_meta='2')])
         self.assertEqual(list(completer.get_completions(Document(text='test arg=', cursor_position=9))),
                          [Completion('First', start_position=0, display_meta='1'),
                           Completion('Second', start_position=0, display_meta='2')])
@@ -114,6 +118,13 @@ class TestCompleter(unittest.TestCase):
         cmds['test'] = Command('test', do_test)
         completer = Completer(cmds)
 
+        self.assertEqual(list(completer.get_completions(Document(text='test ', cursor_position=5))),
+                         [Completion('arg', start_position=0, display_meta=str(Union[TestEnum1, TestEnum2])),
+                          Completion('A1', start_position=0, display_meta='1'),
+                          Completion('B1', start_position=0, display_meta='2'),
+                          Completion('A2', start_position=0, display_meta='3'),
+                          Completion('C2', start_position=0, display_meta='4')])
+
         self.assertEqual(list(completer.get_completions(Document(text='test arg=', cursor_position=9))),
                          [Completion('A1', start_position=0, display_meta='1'),
                           Completion('B1', start_position=0, display_meta='2'),
@@ -146,7 +157,7 @@ class TestCompleter(unittest.TestCase):
         cmds['test'] = Command('test', do_test)
         completer = Completer(cmds)
 
-        with TestType.powercmd_complete.expect_no_calls():
+        with TestType.powercmd_complete.expect_call('arg'):
             self.assertEqual(list(completer.get_completions(Document(text='test arg', cursor_position=8))),
                              [Completion('arg', start_position=-3, display_meta=TestType.__name__)])
 
