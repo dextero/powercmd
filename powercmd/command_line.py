@@ -122,7 +122,12 @@ class CommandLine:
     def get_unassigned_params(self,
                               cmd: Command) -> List[Parameter]:
         assigned_args = self.assign_args(cmd)
-        return [p for p in cmd.parameters if p.name not in assigned_args]
+        if not self.has_trailing_whitespace:
+            current_arg = self.get_current_arg(cmd)
+            if current_arg is not None:
+                assigned_args[current_arg.param.name] = MISSING_ARG
+
+        return [p for p in cmd.parameters if assigned_args[p] is MISSING_ARG]
 
     def get_current_arg(self,
                         cmd: Command) -> Optional[IncompleteArg]:

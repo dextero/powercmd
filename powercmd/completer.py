@@ -38,13 +38,18 @@ class Completer(prompt_toolkit.completion.Completer):
                     for cmd in matching_cmds)
 
     @staticmethod
-    def _complete_params(cmd: Command, incomplete_param: str) -> Sequence[Completion]:
+    def _complete_params(cmd: Command, cmdline: CommandLine) -> Sequence[Completion]:
         """
         Returns a sequence of parameter name completions matching INCOMPLETE_PARAM
         prefix for given CMD.
         """
+        incomplete_param = ''
+        if not cmdline.has_trailing_whitespace:
+            incomplete_param = cmdline.words[-1]
+        unassigned_param_names = cmdline.get_unassigned_params(cmd)
+
         matching_params = (cmd.parameters[param]
-                           for param in match_string(incomplete_param, cmd.parameters))
+                           for param in match_string(incomplete_param, unassigned_param_names))
         yield from (Completion(param.name,
                                start_position=-len(incomplete_param),
                                display_meta=str(param.type.__name__ if hasattr(param.type, '__name__') else str(param.type)))
@@ -169,7 +174,7 @@ class Completer(prompt_toolkit.completion.Completer):
             # all arguments filled in
             return []
 
-        completions += self._complete_params(cmd, '' if cmdline.has_trailing_whitespace else cmdline.words[-1])
+        completions += self._complete_params(cmd, cmdline)
 
         if incomplete_arg is not None:
             completions += self._complete_value(incomplete_arg.param.type, incomplete_arg.value)
