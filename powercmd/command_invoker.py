@@ -20,6 +20,9 @@ from powercmd.utils import (is_generic_list, is_generic_tuple, is_generic_type,
 class MissingArg: pass
 
 
+IncompleteArg = collections.namedtuple('IncompleteArg', ['param', 'value'])
+
+
 class CommandInvoker:
     """
     Constructs command handler arguments and invokes appropriate handler with
@@ -197,7 +200,7 @@ class CommandInvoker:
 
     @staticmethod
     def _assign_args(formal: OrderedMapping[str, inspect.Parameter],
-                     args: Sequence[Union[NamedArg, PositionalArg]]) -> OrderedMapping[str, str]:
+                     args: Sequence[Union[NamedArg, PositionalArg]]) -> OrderedMapping[str, Union[str, MissingArg]]:
         """
         Assigns arguments to named command parameters. Does not handle default
         arguments.
@@ -252,6 +255,32 @@ class CommandInvoker:
             result[name] = value
 
         return result
+
+    def get_current_arg(self,
+                        cmdline: CommandLine) -> Optional[IncompleteArg]:
+        cmd = self._cmds.choose(cmdline.command, verbose=True)
+        assigned_args = self._assign_args(cmd.parameters, cmdline.args)
+
+        last_assigned = None
+        first_unassigned = None
+
+        for name, value in assigned_args.items():
+            if value is MissingArg:
+                if first_unassigned is None:
+                    first_unassigned = name
+            else:
+                last_assigned = name
+
+        if cmdline.has_trailing_whitespace:
+            if first_unassigned is not None:
+                return IncompleteArg(param=cmd.parameters[first_unassigned],
+                                     value='')
+        else:
+            if last_assigned is not None:
+                return IncompleteArg(param=cmd.parameters[last_assigned],
+                                     value=assigned_args[last_assigned])
+
+        return None
 
     def invoke(self,
                *args,
