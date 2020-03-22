@@ -1,6 +1,8 @@
 import unittest
 
-from powercmd.command_line import CommandLine, NamedArg, PositionalArg
+from powercmd.command import Command, Parameter
+from powercmd.command_line import CommandLine, NamedArg, PositionalArg, IncompleteArg
+from powercmd.commands_dict import CommandsDict
 
 
 class TestCommandLine(unittest.TestCase):
@@ -110,3 +112,24 @@ class TestCommandLine(unittest.TestCase):
         self.assertEqual(CommandLine('foo \'bar ').has_trailing_whitespace, False)
         self.assertEqual(CommandLine('foo "bar=baz ').has_trailing_whitespace, False)
         self.assertEqual(CommandLine('foo \'bar=baz ').has_trailing_whitespace, False)
+
+    def test_get_current_arg(self):
+        def do_foo(self,
+                   bar: str = '',
+                   baz: str = ''):
+            pass
+
+        cmd = Command('foo', do_foo)
+
+        self.assertEqual(CommandLine('').get_current_arg(cmd), None)
+        self.assertEqual(CommandLine('foo').get_current_arg(cmd), None)
+        self.assertEqual(CommandLine('foo ').get_current_arg(cmd),
+                         IncompleteArg(Parameter('bar', str, ''), ''))
+        self.assertEqual(CommandLine('foo arg').get_current_arg(cmd),
+                         IncompleteArg(Parameter('bar', str, ''), 'arg'))
+        self.assertEqual(CommandLine('foo arg ').get_current_arg(cmd),
+                         IncompleteArg(Parameter('baz', str, ''), ''))
+        self.assertEqual(CommandLine('foo arg arg').get_current_arg(cmd),
+                         IncompleteArg(Parameter('baz', str, ''), 'arg'))
+        self.assertEqual(CommandLine('foo baz=arg foo=').get_current_arg(cmd),
+                         IncompleteArg(Parameter('foo', str, ''), ''))

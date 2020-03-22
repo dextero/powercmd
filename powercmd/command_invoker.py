@@ -8,19 +8,13 @@ import enum
 import inspect
 from typing import Any, Callable, List, Mapping, Sequence, Tuple, Union, Optional
 
-from powercmd.command_line import CommandLine, NamedArg, PositionalArg
+from powercmd.command_line import CommandLine, MISSING_ARG
 from powercmd.commands_dict import CommandsDict
 from powercmd.exceptions import InvalidInput
 from powercmd.extra_typing import OrderedMapping
 from powercmd.split_list import split_list
 from powercmd.utils import (is_generic_list, is_generic_tuple, is_generic_type,
                             is_generic_union)
-
-
-class MissingArg: pass
-
-
-IncompleteArg = collections.namedtuple('IncompleteArg', ['param', 'value'])
 
 
 class CommandInvoker:
@@ -190,97 +184,13 @@ class CommandInvoker:
         for name, value in assigned_args.items():
             if name in constructed_args:
                 raise InvalidInput('duplicate value for argument: %s' % (name,))
-            if value is MissingArg:
+            if value is MISSING_ARG:
                 raise InvalidInput('missing value for argument: %s' % (name,))
 
             constructed_args[name] = CommandInvoker._construct_arg(formal[name], value)
 
         constructed_args = CommandInvoker._fill_default_args(formal, constructed_args)
         return constructed_args
-
-    @staticmethod
-    def _assign_args(formal: OrderedMapping[str, inspect.Parameter],
-                     args: Sequence[Union[NamedArg, PositionalArg]]) -> OrderedMapping[str, Union[str, MissingArg]]:
-        """
-        Assigns arguments to named command parameters. Does not handle default
-        arguments.
-        """
-        args = copy.copy(args)
-
-        def pop_arg(name: Optional[str]) -> Optional[str]:
-            for idx, arg in enumerate(args):
-                if isinstance(arg, NamedArg):
-                    if arg.name == name:
-                        return args.pop(idx).value
-
-            for idx, arg in enumerate(args):
-                if isinstance(arg, NamedArg) and arg.name not in formal:
-                    print('unrecognized argument: %s' % (arg.name,))
-                    return args.pop(idx).value
-                if isinstance(arg, PositionalArg):
-                    return args.pop(idx).value
-
-            return None
-
-        assigned_args = collections.OrderedDict()
-
-        for name in formal:
-            arg_value = pop_arg(name)
-            if arg_value is not None:
-                assigned_args[name] = arg_value
-            else:
-                assigned_args[name] = MissingArg
-
-        assigned_args = CommandInvoker._assign_free_args(formal, assigned_args, args)
-        return assigned_args
-
-    @staticmethod
-    def _assign_free_args(formal: OrderedMapping[str, inspect.Parameter],
-                          actual: OrderedMapping[str, str],
-                          free: Sequence[str]) -> Mapping[str, str]:
-        """
-        Returns the ACTUAL dict extended by initial FORMAL arguments matched to
-        FREE values.
-        """
-        if len(free) > len(formal):
-            raise InvalidInput('too many free arguments: expected at most %d'
-                               % (len(formal),))
-
-        result = copy.copy(actual)
-        for name, value in zip(formal, free):
-            if result[name] is not MissingArg:
-                raise InvalidInput('cannot assign free argument to %s: '
-                                   'argument already present' % (name,))
-
-            result[name] = value
-
-        return result
-
-    def get_current_arg(self,
-                        cmdline: CommandLine) -> Optional[IncompleteArg]:
-        cmd = self._cmds.choose(cmdline.command, verbose=True)
-        assigned_args = self._assign_args(cmd.parameters, cmdline.args)
-
-        last_assigned = None
-        first_unassigned = None
-
-        for name, value in assigned_args.items():
-            if value is MissingArg:
-                if first_unassigned is None:
-                    first_unassigned = name
-            else:
-                last_assigned = name
-
-        if cmdline.has_trailing_whitespace:
-            if first_unassigned is not None:
-                return IncompleteArg(param=cmd.parameters[first_unassigned],
-                                     value='')
-        else:
-            if last_assigned is not None:
-                return IncompleteArg(param=cmd.parameters[last_assigned],
-                                     value=assigned_args[last_assigned])
-
-        return None
 
     def invoke(self,
                *args,
@@ -290,7 +200,7 @@ class CommandInvoker:
         ARGS are passed to the handler.
         """
         cmd = self._cmds.choose(cmdline.command, verbose=True)
-        assigned_args = self._assign_args(cmd.parameters, cmdline.args)
+        assigned_args = cmdline.assign_args(cmd)
         typed_args = self._construct_args(cmd.parameters, assigned_args)
 
         return cmd.handler(*args, **typed_args)

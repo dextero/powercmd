@@ -1,9 +1,8 @@
-import inspect
 import unittest
 from typing import List, Tuple, Union
 
 from powercmd.command import Command, Parameter
-from powercmd.command_invoker import CommandInvoker, IncompleteArg
+from powercmd.command_invoker import CommandInvoker
 from powercmd.command_line import CommandLine
 from powercmd.commands_dict import CommandsDict
 from powercmd.exceptions import InvalidInput
@@ -143,22 +142,3 @@ class TestCommandInvoker(unittest.TestCase):
             invoker.invoke(self, cmdline=CommandLine('test arg=3.14'))
         with do_test.expect_call(arg='test_arg'):
             invoker.invoke(self, cmdline=CommandLine('test arg=test_arg'))
-
-    def test_get_current_arg(self):
-        def do_foo(self,
-                   bar: str,
-                   baz: str):
-            pass
-
-        cmds = CommandsDict()
-        cmds['foo'] = Command('foo', do_foo)
-
-        invoker = CommandInvoker(cmds)
-        self.assertEqual(invoker.get_current_arg(CommandLine('')), None)
-        self.assertEqual(invoker.get_current_arg(CommandLine('foo')), None)
-        self.assertEqual(invoker.get_current_arg(CommandLine('foo ')), IncompleteArg(Parameter('bar', str, inspect._empty), ''))
-        self.assertEqual(invoker.get_current_arg(CommandLine('foo arg')), IncompleteArg(Parameter('bar', str, inspect._empty), 'arg'))
-        self.assertEqual(invoker.get_current_arg(CommandLine('foo arg ')), IncompleteArg(Parameter('baz', str, inspect._empty), ''))
-        self.assertEqual(invoker.get_current_arg(CommandLine('foo arg arg')), IncompleteArg(Parameter('baz', str, inspect._empty), 'arg'))
-        self.assertEqual(invoker.get_current_arg(CommandLine('foo baz=arg foo=')), IncompleteArg(Parameter('foo', str, inspect._empty), ''))
-

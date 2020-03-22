@@ -3,15 +3,24 @@ Utility class for parsing command lines.
 """
 
 import collections
+import copy
 import re
 
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, Optional, Union
 
+from powercmd.command import Command, Parameter
+from powercmd.exceptions import InvalidInput
+from powercmd.extra_typing import OrderedMapping
 from powercmd.split_list import split_cmdline, drop_enclosing_quotes
 
 
+IncompleteArg = collections.namedtuple('IncompleteArg', ['param', 'value'])
 NamedArg = collections.namedtuple('NamedArg', ['name', 'value'])
 PositionalArg = collections.namedtuple('PositionalArg', ['value'])
+
+
+class MissingArg: pass
+MISSING_ARG = MissingArg
 
 
 class CommandLine:
@@ -69,3 +78,85 @@ class CommandLine:
     def __repr__(self):
         return ('CommandLine(raw_text=%s,quoted_words=%s,command=%s,args=%s)'
                 % (repr(self.raw_text), repr(self.quoted_words), repr(self.command), repr(self.args)))
+
+    def assign_args(self,
+                    cmd: Command) -> OrderedMapping[str, Union[str, MissingArg]]:
+        """
+        Assigns arguments to named command parameters. Does not handle default
+        arguments.
+        """
+        args = copy.copy(self.args)
+
+        def pop_arg(name: Optional[str]) -> Optional[str]:
+            for idx, arg in enumerate(args):
+                if isinstance(arg, NamedArg):
+                    if arg.name == name:
+                        return args.pop(idx).value
+
+            for idx, arg in enumerate(args):
+                if isinstance(arg, NamedArg) and arg.name not in cmd.parameters:
+                    print('unrecognized argument: %s' % (arg.name,))
+                    return args.pop(idx).value
+                if isinstance(arg, PositionalArg):
+                    return args.pop(idx).value
+
+            return None
+
+        assigned_args = collections.OrderedDict()
+
+        for name in cmd.parameters:
+            arg_value = pop_arg(name)
+            if arg_value is not None:
+                assigned_args[name] = arg_value
+            else:
+                assigned_args[name] = MISSING_ARG
+
+        assigned_args = self._assign_free_args(cmd, assigned_args, args)
+        return assigned_args
+
+    def _assign_free_args(self,
+                          cmd: Command,
+                          actual: OrderedMapping[str, str],
+                          free: Sequence[str]) -> Mapping[str, str]:
+        """
+        Returns the ACTUAL dict extended by initial FORMAL arguments matched to
+        FREE values.
+        """
+        if len(free) > len(cmd.parameters):
+            raise InvalidInput('too many free arguments: expected at most %d'
+                               % (len(cmd.parameters),))
+
+        result = copy.copy(actual)
+        for name, value in zip(cmd.parameters, free):
+            if result[name] is not MISSING_ARG:
+                raise InvalidInput('cannot assign free argument to %s: '
+                                   'argument already present' % (name,))
+
+            result[name] = value
+
+        return result
+
+    def get_current_arg(self,
+                        cmd: Command) -> Optional[IncompleteArg]:
+        assigned_args = self.assign_args(cmd)
+
+        last_assigned = None
+        first_unassigned = None
+
+        for name, value in assigned_args.items():
+            if value is MISSING_ARG:
+                if first_unassigned is None:
+                    first_unassigned = name
+            else:
+                last_assigned = name
+
+        if self.has_trailing_whitespace:
+            if first_unassigned is not None:
+                return IncompleteArg(param=cmd.parameters[first_unassigned],
+                                     value='')
+        else:
+            if last_assigned is not None:
+                return IncompleteArg(param=cmd.parameters[last_assigned],
+                                     value=assigned_args[last_assigned])
+
+        return None
