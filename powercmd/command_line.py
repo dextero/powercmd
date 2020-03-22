@@ -4,9 +4,10 @@ Utility class for parsing command lines.
 
 import collections
 import re
-import shlex
 
 from typing import Mapping, Sequence
+
+from powercmd.split_list import split_cmdline, drop_enclosing_quotes
 
 
 NamedArg = collections.namedtuple('NamedArg', ['name', 'value'])
@@ -22,10 +23,10 @@ class CommandLine:
     """
 
     def __init__(self, cmdline: str):
-        # shlex.split() makes inputting strings annoying,
-        # TODO: find an alternative
-        words = shlex.split(cmdline)
-        # words = cmdline.split()
+        self.raw_text = cmdline
+        self.quoted_words = split_cmdline(cmdline, allow_unmatched=True)
+
+        words = [drop_enclosing_quotes(word) for word in self.quoted_words]
 
         self.command = words[0] if words else ''
         self.args = []
@@ -56,6 +57,15 @@ class CommandLine:
     def free_args(self) -> Sequence[str]:
         return [arg.value for arg in self.args if isinstance(arg, PositionalArg)]
 
+    @property
+    def has_trailing_whitespace(self) -> bool:
+        if not self.raw_text:
+            return False
+        if self.raw_text.isspace():
+            return True
+        assert len(self.quoted_words) > 0
+        return not self.raw_text.endswith(self.quoted_words[-1])
+
     def __repr__(self):
-        return ('CommandLine(command=%s,named_args=%s,free_args=%s)'
-                % (repr(self.command), repr(self.named_args), repr(self.free_args)))
+        return ('CommandLine(raw_text=%s,quoted_words=%s,command=%s,args=%s)'
+                % (repr(self.raw_text), repr(self.quoted_words), repr(self.command), repr(self.args)))
