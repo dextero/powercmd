@@ -59,6 +59,7 @@ class Cmd:
     def __init__(self, history: History = None):
         self._last_exception = None
         self._session = PromptSession(history=history)
+        self._loop = True
 
         self.prompt = '> '
         self.prompt_style = Style.from_dict({'': 'bold'})
@@ -89,13 +90,13 @@ class Cmd:
 
     def do_exit(self):
         """Terminates the command loop."""
+        self._loop = False
         print('exiting')
         return True
 
     # pylint: disable=invalid-name
     def do_EOF(self):
         """Terminates the command loop."""
-        print('')
         return self.do_exit()
 
     # pylint: disable=arguments-differ
@@ -191,7 +192,7 @@ class Cmd:
         """
         completer = Completer(self._get_all_commands())
         try:
-            while True:
+            while self._loop:
                 if os.isatty(sys.stdin.fileno()):
                     with patch_stdout():
                         cmd = self._session.prompt(self.prompt, completer=completer, style=self.prompt_style)
