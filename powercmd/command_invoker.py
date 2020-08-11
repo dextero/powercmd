@@ -184,10 +184,12 @@ class CommandInvoker:
         for name, value in assigned_args.items():
             if name in constructed_args:
                 raise InvalidInput('duplicate value for argument: %s' % (name,))
-            if value is MISSING_ARG:
-                raise InvalidInput('missing value for argument: %s' % (name,))
 
-            constructed_args[name] = CommandInvoker._construct_arg(formal[name], value)
+            if value is MISSING_ARG:
+                if formal[name].default is inspect.Parameter.empty:
+                    raise InvalidInput('missing value for argument: %s' % (name,))
+            else:
+                constructed_args[name] = CommandInvoker._construct_arg(formal[name], value)
 
         constructed_args = CommandInvoker._fill_default_args(formal, constructed_args)
         return constructed_args
