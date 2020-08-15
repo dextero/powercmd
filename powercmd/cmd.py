@@ -104,6 +104,8 @@ class Cmd:
                 topic: str = ''):
         """
         Displays a description of given command or lists all available commands.
+        In the first case it also shows the parameters, optional ones are
+        displayed with question marks.
         """
         cmds = self._get_all_commands()
 

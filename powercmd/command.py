@@ -74,10 +74,17 @@ class Command(collections.namedtuple('Command', ['name', 'handler'])):
             return self.description.strip().split('\n', maxsplit=1)[0]
         return None
 
+    def _param_to_help_str(self, param) -> str:
+        """Returns the help string for the given param name"""
+        if self.parameters[param].default is inspect.Parameter.empty:
+            return str(param)
+        else:
+            return str(param) + '?'
+
     @property
-    def help(self):
+    def help(self) -> str:
         """Returns a help message for this command handler."""
         return ('%s\n\nARGUMENTS: %s %s\n'
                 % (textwrap.dedent(self.description or 'No details available.').strip(),
                    self.name,
-                   ' '.join(str(param) for param in self.parameters)))
+                   ' '.join(self._param_to_help_str(param) for param in self.parameters)))
